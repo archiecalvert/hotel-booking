@@ -221,6 +221,26 @@ class BookingSystem():
             input("Press Enter to return to the home menu...")
             self.set_menu_state(MenuState.HOME)
 
+    def load_first_5_slots_menu(self):
+        self._print_title("Available Slots (Limit of 5)")
+        try:
+            print("Fetching data...")
+            slot_data = self.get_matching_available_slots(5)
+            if slot_data != None:
+                for slot in self.parse_list(slot_data):
+                    print(slot)
+            else:
+                print("No current matching slots are available.")
+    
+        except Exception as e:
+            print(f"An error occurred while performing the request: {e}")
+
+        finally:
+            # keep on screen until user confirms theyre finished
+            input("Press Enter to return to the home menu...")
+            self.set_menu_state(MenuState.HOME)
+        
+
     def start(self):
         do_mainloop = True
         self.set_menu_state(MenuState.HOME)
@@ -267,7 +287,7 @@ class BookingSystem():
                     case 4:
                         self.set_menu_state(MenuState.CANCEL_HELD_SLOT)
                     case 5:
-                        pass
+                        self.set_menu_state(MenuState.VIEW_5_UPCOMING_SLOTS)
                     case 6:
                         pass
                     case 7:
@@ -295,18 +315,7 @@ class BookingSystem():
 
             # --------- MENU OPTION 5 ---------
             elif self.state == MenuState.VIEW_5_UPCOMING_SLOTS:
-                print("Fetching data...")
-                slot_data = self.get_matching_available_slots(5)
-                try:
-                    if slot_data != None:
-                        self.parse_list(slot_data)
-                    else:
-                        print("No current matching slots are available.")
-                except Exception as e:
-                    print(f"An error occurred when fecthing data: {e}")
-
-                input("Press Enter to continue...")
-                self.set_menu_state(MenuState.HOME)
+                self.load_first_5_slots_menu()
 
             # --------- MENU OPTION 6 ---------
             elif self.state == MenuState.RESERVE_EARLIEST_SLOT:
