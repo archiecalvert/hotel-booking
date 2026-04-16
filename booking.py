@@ -5,15 +5,18 @@ import reservationapi
 import configparser
 import os
 import time
+from exceptions import (
+    BadRequestError, InvalidTokenError, BadSlotError, NotProcessedError,
+    SlotUnavailableError,ReservationLimitError)
 
-'''
-Rate Limiter for API calls.
-To use:
-    - Create Object
-    - Execute an API request by:
-        rate_limiter.run_task(lambda: function(arguments))
-'''
 class RateLimiter:
+    '''
+    Rate Limiter for API calls.
+    To use:
+        - Create Object
+        - Execute an API request by:
+            rate_limiter.run_task(lambda: function(arguments))
+    '''
     def __init__(self, rate_limit):
         self.rate_limit = float(rate_limit)
         self.last_timestamp = 0
@@ -29,8 +32,15 @@ class RateLimiter:
 
 
 class MenuState(Enum):
-    HOME = 1
-    BOOK_SLOT = 2
+    '''State Machine variables for the booking system'''
+    HOME = 0
+    VIEW_CURRENT_HOTEL_SLOTS = 1
+    VIEW_CURRENT_BAND_SLOTS = 2
+    BOOK_SLOT = 3
+    CANCEL_HELD_SLOT = 4
+    VIEW_5_UPCOMING_SLOTS = 5
+    RESERVE_EARLIEST_SLOT = 6
+    CANCEL_UNNEEDED_RESERVATION = 7
 
 
 class BookingSystem():
@@ -56,40 +66,114 @@ class BookingSystem():
         # Create an rate limiter to manage API requests
         self.rate_limiter = RateLimiter(rate_limit=1)
 
-        self.state = MenuState.HOME
+        self.data_cache = dict()
     
     def _print_title(self, title: str):
         '''
-        Function which prints a formatted title of the form: |-----| TITLE |-----|
+        Function which prints a formatted title of the form: 
+        <br>|-----| TITLE |-----|
         '''
         dash_repeat = int((BookingSystem.TITLE_WIDTH - (6 + len(title))) / 2)
         section = "|" + "-" * dash_repeat + "|"
         print(section + " " + title + " " + section)
 
     def _reset_stdout(self):
-        '''
-        Function which clears the output of the terminal and prints the menu title at the top
-        '''
+        ''' Function which clears the output of the terminal and prints the menu title at the top '''
         os.system('cls' if os.name == 'nt' else 'clear')
         print("=" * BookingSystem.TITLE_WIDTH)
         self._print_title(BookingSystem.TITLE)
         print("=" * BookingSystem.TITLE_WIDTH)
 
     def parse_list(self, raw_data: dict) -> list[str]:
+        ''' Function used in order to parse the slot data for a list of bookings '''
         out = []
         for item in raw_data:
             out.append(f"Slot {item.get('id')}")
         return out
 
-    def swap_menu(self, state):
+    def set_menu_state(self, state):
+        ''' Used to change what state the booking system is in. '''
         self.state = state
         # ----------------- TITLE -----------------
         self._reset_stdout()
         print()
 
-    def mainloop(self):
+    def get_matching_available_slots(self, limit = None):
+        hotel_availability = self.hotel.get_slots_available()
+        band_availability = self.band.get_slots_available()
+        matches = []
+
+        for slot in hotel_availability:
+            if slot in band_availability:                
+                matches.append(slot)
+
+        if limit != None: return matches[:limit]
+        else: return matches
+
+    def load_held_hotel_slots_menu():
+        pass
+    
+    def load_held_band_slots_menu():
+        pass
+
+    def load_book_specified_slot_menu(self):
+        ''' Menu function for booking a slot '''
+        self._print_title("Book a Slot")
+        # try call api and handle any errors that might come with that
+        try:
+            data = self.get_matching_available_slots()
+            
+            # parse the data and print to console output
+            if data == None:
+                print("No available slots are remaining")
+                return
+
+            self._print_title("Avaialable Slots")
+            for res in self.parse_list(data):
+                print(res)
+            print()
+
+            # --- BOOKING LOGIC ---
+            option = None
+            # poll to see if user wants to continue
+            while option == None:
+                option = input("Do you wish to continue with the request? (Yes/No): ")
+                if option.lower() != "yes" and option.lower() != "no":
+                    print("Invalid option selected.")
+                    option = None
+            
+            if option.lower() == "no": return
+
+            # poll for relevant slot
+            option = None
+            while option == None:
+                try:
+                    option = int(input("Enter Slot ID: "))
+                except:
+                    print("Invalid slot ID.")
+            
+            # ensure that if any errors occur, the system cleans up after itself
+            try: self.hotel.reserve_slot(option)
+            except: return
+            
+            try: self.band.reserve_slot(option)
+            except:
+                self.hotel.release_slot(option)
+                return
+            
+            print(f"SUCCESS! Slot {option} has been reserved successfully.")
+
+        except Exception as e:
+            print(f"An error occurred while performing the request: {e}")
+
+        finally:
+            # keep on screen until user confirms theyre finished
+            input("Press Enter to return to the home menu...")
+            self.set_menu_state(MenuState.HOME)
+
+    def start(self):
         do_mainloop = True
-        self.swap_menu(MenuState.HOME)
+        self.set_menu_state(MenuState.HOME)
 
         while do_mainloop:
 
@@ -105,13 +189,13 @@ class BookingSystem():
 
                 # --------------- OPERATIONS --------------
                 self._print_title(" OPERATIONS ")
-                print("1. View the currently held slots for the hotel")
-                print("2. View the currently held slots for the band")
-                print("3. Book a slot")
-                print("4. Cancel a booking")
-                print("5. View the first 5 matching slots")
-                print("6. Reserve the earliest slot")
-                print("7. Cancel a reservation")
+                print("1. View the current slots held for the hotel")
+                print("2. View the current slots held for the band")
+                print("3. Book a specified slot")
+                print("4. Cancel a held slot")
+                print("5. View the first 5 available slots")
+                print("6. Reserve the earliest available slot")
+                print("7. Cancel unneeded reservations")
                 print("8. Quit\n")
 
                 option = None
@@ -123,11 +207,13 @@ class BookingSystem():
                 
                 match option:
                     case 1:
-                        self.rate_limiter.run_task(lambda: self.hotel.get_slots_held())
+                        slot_data = self.rate_limiter.run_task(lambda: self.hotel.get_slots_held())
+                        self.parse_list(slot_data)
                     case 2:
-                        self.rate_limiter.run_task(lambda: self.band.get_slots_held())
+                        slot_data = self.rate_limiter.run_task(lambda: self.band.get_slots_held())
+                        self.parse_list(slot_data)
                     case 3:
-                        self.swap_menu(MenuState.BOOK_SLOT)
+                        self.set_menu_state(MenuState.BOOK_SLOT)
                     case 4:
                         pass
                     case 5:
@@ -138,14 +224,49 @@ class BookingSystem():
                         pass
                     case 8:
                         do_mainloop = False
+                    case _:
+                        print("Invalid operation selected.")
 
+            # --------- MENU OPTION 1 ---------
+            elif self.state == MenuState.VIEW_CURRENT_HOTEL_SLOTS:
+                self.load_held_hotel_slots_menu()
+
+            # --------- MENU OPTION 2 ---------
+            elif self.state == MenuState.VIEW_CURRENT_BAND_SLOTS:
+                self.load_held_band_slots_menu()
+
+            # --------- MENU OPTION 3 ---------
             elif self.state == MenuState.BOOK_SLOT:
-                self._print_title("Book a Slot")
-                
+                self.load_book_specified_slot_menu()
+                                
+            # --------- MENU OPTION 4 ---------
+            elif self.state == MenuState.CANCEL_HELD_SLOT:
+                pass
 
+            # --------- MENU OPTION 5 ---------
+            elif self.state == MenuState.VIEW_5_UPCOMING_SLOTS:
+                print("Fetching data...")
+                slot_data = self.get_matching_available_slots(5)
+                try:
+                    if slot_data != None:
+                        self.parse_list(slot_data)
+                    else:
+                        print("No current matching slots are available.")
+                except Exception as e:
+                    print(f"An error occurred when fecthing data: {e}")
+
+                input("Press Enter to continue...")
+                self.set_menu_state(MenuState.HOME)
+
+            # --------- MENU OPTION 6 ---------
+            elif self.state == MenuState.RESERVE_EARLIEST_SLOT:
+                pass
+
+            # --------- MENU OPTION 7 ---------
+            elif self.state == MenuState.CANCEL_UNNEEDED_RESERVATION:
+                pass
 
 
 if __name__ == "__main__":
     booking_system = BookingSystem()
-
-    booking_system.mainloop()
+    booking_system.start()

@@ -140,39 +140,21 @@ class ReservationApi:
     def get_slots_available(self):
         """Obtain the list of slots currently available in the system"""
         # Your code goes here
-        try:
-            slot_data = self._send_request("GET", f"{self.base_url}/reservation/available")
-            return slot_data
-
-        except Exception as e:
-            raise e
+        return self._send_request("GET", f"{self.base_url}/reservation/available")
 
     def get_slots_held(self):
         """Obtain the list of slots currently held by the client"""
         # Your code goes here
-        try:
-            slot_data = self._send_request("GET", f"{self.base_url}/reservation")
-            return slot_data
-
-        except Exception as e:
-            raise e
+        return self._send_request("GET", f"{self.base_url}/reservation")
 
     def release_slot(self, slot_id):
         """Release a slot currently held by the client"""
         # Your code goes here
-        try:
-            slot_data = self._send_request("DELETE", f"{self.base_url}/reservation/{slot_id}")
-            return slot_data
+        return self._send_request("DELETE", f"{self.base_url}/reservation/{slot_id}")
 
-        except Exception as e:
-            raise e
 
     def reserve_slot(self, slot_id):
         """Attempt to reserve a slot for the client"""
         # Your code goes here
-        try:
-            slot_data = self._send_request("POST", f"{self.base_url}/reservation/{slot_id}")
-            return slot_data
+        return self._send_request("POST", f"{self.base_url}/reservation/{slot_id}")
 
-        except Exception as e:
-            raise e
