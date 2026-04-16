@@ -116,7 +116,7 @@ class BookingSystem():
     def load_held_band_slots_menu():
         pass
 
-    def load_book_specified_slot_menu(self):
+    def load_book_slot_menu(self):
         ''' Menu function for booking a slot '''
         self._print_title("Book a Slot")
         # try call api and handle any errors that might come with that
@@ -152,6 +152,7 @@ class BookingSystem():
                 except:
                     print("Invalid slot ID.")
             
+            print("Attempting to book slot...")
             # ensure that if any errors occur, the system cleans up after itself
             try: self.hotel.reserve_slot(option)
             except: return
@@ -162,6 +163,55 @@ class BookingSystem():
                 return
             
             print(f"SUCCESS! Slot {option} has been reserved successfully.")
+
+        except Exception as e:
+            print(f"An error occurred while performing the request: {e}")
+
+        finally:
+            # keep on screen until user confirms theyre finished
+            input("Press Enter to return to the home menu...")
+            self.set_menu_state(MenuState.HOME)
+
+    def load_cancel_slot_menu(self):
+        ''' Menu for removing a reserved slot '''
+        self._print_title("Cancel a Held Slot")
+        # try call api and handle any errors that might come with that
+        try:
+            data = self.hotel.get_slots_held()
+            
+            # parse the data and print to console output
+            if data == None:
+                print("No slots are being currently held by the user")
+                return
+
+            for res in self.parse_list(data):
+                print(res)
+            print()
+
+            # --- BOOKING LOGIC ---
+            option = None
+            # poll to see if user wants to continue
+            while option == None:
+                option = input("Do you wish to continue with the request? (Yes/No): ")
+                if option.lower() != "yes" and option.lower() != "no":
+                    print("Invalid option selected.")
+                    option = None
+            
+            if option.lower() == "no": return
+
+            # poll for relevant slot
+            option = None
+            while option == None:
+                try:
+                    option = int(input("Enter Slot ID: "))
+                except:
+                    print("Invalid slot ID.")
+            
+            print("Attempting to cancel slot...")
+            self.hotel.release_slot(option)
+            self.band.release_slot(option)
+
+            print(f"SUCCESS! Slot {option} has been cancelled successfully.")
 
         except Exception as e:
             print(f"An error occurred while performing the request: {e}")
@@ -215,7 +265,7 @@ class BookingSystem():
                     case 3:
                         self.set_menu_state(MenuState.BOOK_SLOT)
                     case 4:
-                        pass
+                        self.set_menu_state(MenuState.CANCEL_HELD_SLOT)
                     case 5:
                         pass
                     case 6:
@@ -237,11 +287,11 @@ class BookingSystem():
 
             # --------- MENU OPTION 3 ---------
             elif self.state == MenuState.BOOK_SLOT:
-                self.load_book_specified_slot_menu()
+                self.load_book_slot_menu()
                                 
             # --------- MENU OPTION 4 ---------
             elif self.state == MenuState.CANCEL_HELD_SLOT:
-                pass
+                self.load_cancel_slot_menu()
 
             # --------- MENU OPTION 5 ---------
             elif self.state == MenuState.VIEW_5_UPCOMING_SLOTS:
