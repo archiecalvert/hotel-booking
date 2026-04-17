@@ -47,7 +47,7 @@ class RateLimiter:
 class MenuState(Enum):
     '''State Machine variables for the booking system'''
     HOME = 0
-    VIEW_CURRENT_HOTEL_SLOTS = 1
+    VIEW_CURRENT_HOTEL_BAND_SLOTS = 1
     VIEW_CURRENT_BAND_SLOTS = 2
     BOOK_SLOT = 3
     CANCEL_HELD_SLOT = 4
@@ -162,8 +162,33 @@ class BookingSystem():
                     print(f"An error occured trying to cancel band slot {id}: {e}. Continuing...")
 
 
-    def load_held_hotel_slots_menu():
-        pass
+    def load_held_hotel_band_slots_menu(self):
+        self._print_title("Held Slots")
+        try:
+            hotel_data = self.rate_limiter.get_slots_held(self.hotel)
+            band_data = self.rate_limiter.get_slots_held(self.band)
+
+            if hotel_data == [] and band_data == []:
+                print("No slots are being currently held")
+                return
+            
+            print(f"{" " * 9}{'HOTEL':<16}{"|":<12}BAND")
+
+            for i in range(max(len(hotel_data), len(band_data))):
+                hotel_slot = f"Slot {hotel_data[i]['id']}" if i < len(hotel_data) else ""
+                band_slot = f"Slot {band_data[i]['id']}" if i < len(band_data) else ""
+                print(f"  {hotel_slot:<23}|  {band_slot}")
+
+            print()
+
+        except Exception as e:
+            print(f"An error occurred while performing the request: {e}")
+
+        finally:
+            # keep on screen until user confirms theyre finished
+            input("Press Enter to return to the home menu...")
+            self.set_menu_state(MenuState.HOME)
+
     
     def load_held_band_slots_menu():
         pass
@@ -334,8 +359,8 @@ class BookingSystem():
         self._print_title("Cancel Unneeded Reservation")
         try:
             print("Fetching reservation data...")
-            hotel_data = self.hotel.get_slots_held()
-            band_data = self.band.get_slots_held()
+            hotel_data = self.rate_limiter.get_slots_held(self.hotel)
+            band_data = self.rate_limiter.get_slots_held(self.band)
 
             unmatched_hotels = []
             unmatched_bands = []
@@ -391,7 +416,7 @@ class BookingSystem():
 
             if self.state == MenuState.HOME:
                 # ------------- CURRENT SLOTS -------------
-                booked_slots = self.rate_limiter.run_task(lambda: self.parse_list(self.hotel.get_slots_held()))
+                booked_slots = self.parse_list(self.rate_limiter.get_slots_held(self.hotel))
                 # if we have slots booked, then we print them
                 if len(booked_slots) > 0:
                     self._print_title("CURRENTLY HELD SLOTS")
@@ -401,8 +426,8 @@ class BookingSystem():
 
                 # --------------- OPERATIONS --------------
                 self._print_title(" OPERATIONS ")
-                print("1. View the current slots held for the hotel")
-                print("2. View the current slots held for the band")
+                print("1. View the current slots held for the hotel and band")
+                print("2. View the first 20 available slots for the hotel and band")
                 print("3. Book a specified slot")
                 print("4. Cancel a held slot")
                 print("5. View the first 5 available slots")
@@ -419,11 +444,9 @@ class BookingSystem():
                 
                 match option:
                     case 1:
-                        slot_data = self.rate_limiter.run_task(lambda: self.hotel.get_slots_held())
-                        self.parse_list(slot_data)
+                        self.set_menu_state(MenuState.VIEW_CURRENT_HOTEL_BAND_SLOTS)
                     case 2:
-                        slot_data = self.rate_limiter.run_task(lambda: self.band.get_slots_held())
-                        self.parse_list(slot_data)
+                        pass
                     case 3:
                         self.set_menu_state(MenuState.BOOK_SLOT)
                     case 4:
@@ -440,8 +463,8 @@ class BookingSystem():
                         print("Invalid operation selected.")
 
             # --------- MENU OPTION 1 ---------
-            elif self.state == MenuState.VIEW_CURRENT_HOTEL_SLOTS:
-                self.load_held_hotel_slots_menu()
+            elif self.state == MenuState.VIEW_CURRENT_HOTEL_BAND_SLOTS:
+                self.load_held_hotel_band_slots_menu()
 
             # --------- MENU OPTION 2 ---------
             elif self.state == MenuState.VIEW_CURRENT_BAND_SLOTS:
