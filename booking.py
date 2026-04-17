@@ -31,18 +31,6 @@ class RateLimiter:
         self.last_timestamp = time.time()
         return task()
     
-    # --------- WRAPPER METHODS ---------
-    def get_slots_available(self, object: reservationapi.ReservationApi):
-        return self.run_task(lambda: object.get_slots_available())
-    
-    def get_slots_held(self, object: reservationapi.ReservationApi):
-        return self.run_task(lambda: object.get_slots_held())
-    
-    def release_slot(self, object: reservationapi.ReservationApi,  slot_id):
-        return self.run_task(lambda: object.release_slot(slot_id))
-    
-    def reserve_slot(self, object: reservationapi.ReservationApi,  slot_id):
-        return self.run_task(lambda: object.reserve_slot(slot_id))
 
 class MenuState(Enum):
     '''State Machine variables for the booking system'''
@@ -55,117 +43,21 @@ class MenuState(Enum):
     RESERVE_EARLIEST_SLOT = 6
     CANCEL_UNNEEDED_RESERVATION = 7
 
-class BookingSystem():
-    TITLE_WIDTH = 50
-    TITLE = "WEDDING BOOKING SYSTEM"
+class Menu():
 
-    def __init__(self):
-        config = configparser.ConfigParser()
-        config.read("api.ini")
+    def __init__(self, system: "BookingSystem"):
+        self.system = system
 
-        # Create an API object to communicate with the hotel API
-        self.hotel  = reservationapi.ReservationApi(config['hotel']['url'],
-                                            config['hotel']['key'],
-                                            int(config['global']['retries']),
-                                            float(config['global']['delay']))
+class MenuHeldHotelsAndBands(Menu):
 
-        # Create an API object to communicate with the band API
-        self.band   = reservationapi.ReservationApi(config['band']['url'],
-                                            config['band']['key'],
-                                            int(config['global']['retries']),
-                                            float(config['global']['delay']))
-        
-        # Create an rate limiter to manage API requests
-        self.rate_limiter = RateLimiter(rate_limit=1)
+    def __init__(self, system: "BookingSystem"):
+        super().__init__(system)
 
-        self.data_cache = dict()
-    
-    def _print_title(self, title: str):
-        '''
-        Function which prints a formatted title of the form: 
-        <br>|-----| TITLE |-----|
-        '''
-        dash_repeat = int((BookingSystem.TITLE_WIDTH - (6 + len(title))) / 2)
-        section = "|" + "-" * dash_repeat + "|"
-        print(section + " " + title + " " + section)
-
-    def _reset_stdout(self):
-        ''' Function which clears the output of the terminal and prints the menu title at the top '''
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print("=" * BookingSystem.TITLE_WIDTH)
-        self._print_title(BookingSystem.TITLE)
-        print("=" * BookingSystem.TITLE_WIDTH)
-
-    def parse_list(self, raw_data: dict) -> list[str]:
-        ''' Function used in order to parse the slot data for a list of bookings '''
-        out = []
-        for item in raw_data:
-            out.append(f"Slot {item.get('id')}")
-        return out
-
-    def set_menu_state(self, state):
-        ''' Used to change what state the booking system is in. '''
-        self.state = state
-        # ----------------- TITLE -----------------
-        self._reset_stdout()
-        print()
-
-    def cancel_matching_slot(self, slot_id):
+    def load(self):
+        self.system._print_title("Held Slots")
         try:
-            self.rate_limiter.release_slot(self.hotel, slot_id)
-            self.rate_limiter.release_slot(self.band, slot_id)
-        except Exception as e:
-            print(f"An error occured when cancelling slot {slot_id}. You may want to run manual clean-up from the Home Menu.")
-            raise e
-
-    def book_matching_slot(self, slot_id):
-        # ensure that if any errors occur, the system cleans up after itself
-        try:
-            self.rate_limiter.reserve_slot(self.hotel, slot_id)
-            self.rate_limiter.reserve_slot(self.band, slot_id)
-        except Exception as e:
-            self.rate_limiter.release_slot(self.hotel, slot_id)
-            raise e
-
-    def get_matching_available_slots(self, limit = None):
-
-        hotel_availability = self.rate_limiter.get_slots_available(self.hotel)
-        band_availability = self.rate_limiter.get_slots_available(self.band)
-        matches = []
-
-        for slot in hotel_availability:
-            if slot in band_availability:                
-                matches.append(slot)
-
-        if limit != None: return matches[:limit]
-        else: return matches
-
-    def cleanup_bookings(self, hotel_data: None, band_data: None):
-        if hotel_data == None: hotel_data = self.rate_limiter.get_slots_held(self.hotel)
-        if band_data == None: band_data = self.rate_limiter.get_slots_held(self.band)
-
-        for slot in hotel_data:
-            if slot not in band_data:
-                id = slot.get("id")
-                try:
-                    self.rate_limiter.release_slot(self.hotel, id)
-                except Exception as e:
-                    print(f"An error occured trying to cancel hotel slot {id}: {e}. Continuing...")
-        
-        for slot in band_data:
-            if slot not in hotel_data:
-                id = slot.get("id")
-                try:
-                    self.rate_limiter.release_slot(self.band, id)
-                except Exception as e:
-                    print(f"An error occured trying to cancel band slot {id}: {e}. Continuing...")
-
-
-    def load_held_hotel_band_slots_menu(self):
-        self._print_title("Held Slots")
-        try:
-            hotel_data = self.rate_limiter.get_slots_held(self.hotel)
-            band_data = self.rate_limiter.get_slots_held(self.band)
+            hotel_data = self.system.get_slots_held(self.system.hotel)
+            band_data = self.system.get_slots_held(self.system.band)
 
             if hotel_data == [] and band_data == []:
                 print("No slots are being currently held")
@@ -186,14 +78,17 @@ class BookingSystem():
         finally:
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
-            self.set_menu_state(MenuState.HOME)
+            self.system.set_menu_state(MenuState.HOME)
 
+class Menu20AvailableHotelsAndBands(Menu):
+    def __init__(self, system: "BookingSystem"):
+        super().__init__(system)
     
-    def load_20_hotel_band_available_menu(self):
-        self._print_title("Earliest 20 Available Slots")
+    def load(self):
+        self.system._print_title("Earliest 20 Available Slots")
         try:
-            hotel_data = self.rate_limiter.get_slots_available(self.hotel)[:20]
-            band_data = self.rate_limiter.get_slots_available(self.hotel)[:20]
+            hotel_data = self.system.get_slots_available(self.system.hotel)[:20]
+            band_data = self.system.get_slots_available(self.system.hotel)[:20]
 
             if hotel_data == [] and band_data == []:
                 print("No slots are being currently available")
@@ -213,23 +108,26 @@ class BookingSystem():
         finally:
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
-            self.set_menu_state(MenuState.HOME)
+            self.system.set_menu_state(MenuState.HOME)
 
-
-    def load_book_slot_menu(self):
+class MenuBookedSlots(Menu):
+    def __init__(self, system: "BookingSystem"):
+        super().__init__(system)
+    
+    def load(self):
         ''' Menu function for booking a slot '''
-        self._print_title("Book a Slot")
+        self.system._print_title("Book a Slot")
         # try call api and handle any errors that might come with that
         try:
-            data = self.get_matching_available_slots()
+            data = self.system.get_matching_available_slots()
             
             # parse the data and print to console output
             if data == None or data == []:
                 print("No available slots are remaining")
                 return
 
-            self._print_title("Avaialable Slots")
-            for res in self.parse_list(data):
+            self.system._print_title("Avaialable Slots")
+            for res in self.system.parse_list(data):
                 print(res)
             print()
 
@@ -255,7 +153,7 @@ class BookingSystem():
             print("Attempting to book slot...")
     
             try:
-                self.book_matching_slot(option)
+                self.system.book_matching_slot(option)
                 print(f"SUCCESS! Slot {option} has been reserved successfully.")
             except Exception as e:
                 print("Failed to book the requested slot. Please return to the main menu and try again.")
@@ -267,21 +165,25 @@ class BookingSystem():
         finally:
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
-            self.set_menu_state(MenuState.HOME)
+            self.system.set_menu_state(MenuState.HOME)
 
-    def load_cancel_slot_menu(self):
+class MenuCancelSlot(Menu):
+    def __init__(self, system: "BookingSystem"):
+        super().__init__(system)
+
+    def load(self):
         ''' Menu for removing a reserved slot '''
-        self._print_title("Cancel a Held Slot")
+        self.system._print_title("Cancel a Held Slot")
         # try call api and handle any errors that might come with that
         try:
-            data = self.rate_limiter.get_slots_held(self.hotel)
+            data = self.system.get_slots_held(self.system.hotel)
             
             # parse the data and print to console output
             if data == None or data == []:
                 print("No slots are being currently held by the user")
                 return
 
-            for res in self.parse_list(data):
+            for res in self.system.parse_list(data):
                 print(res)
             print()
 
@@ -305,7 +207,7 @@ class BookingSystem():
                     print("Invalid slot ID.")
             
             print("Attempting to cancel slot...")
-            self.cancel_matching_slot(option)
+            self.system.cancel_matching_slot(option)
             print(f"SUCCESS! Slot {option} has been cancelled successfully.")
 
         except Exception as e:
@@ -314,15 +216,19 @@ class BookingSystem():
         finally:
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
-            self.set_menu_state(MenuState.HOME)
+            self.system.set_menu_state(MenuState.HOME)
 
-    def load_first_5_slots_menu(self):
-        self._print_title("Available Slots (Limit of 5)")
+class MenuUpcoming5Slots(Menu):
+    def __init__(self, system: "BookingSystem"):
+        super().__init__(system)
+
+    def load(self):
+        self.system._print_title("Available Slots (Limit of 5)")
         try:
             print("Fetching data...")
-            slot_data = self.get_matching_available_slots(5)
+            slot_data = self.system.get_matching_available_slots(5)
             if slot_data != None:
-                for slot in self.parse_list(slot_data):
+                for slot in self.system.parse_list(slot_data):
                     print(slot)
             else:
                 print("No current matching slots are available.")
@@ -333,14 +239,18 @@ class BookingSystem():
         finally:
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
-            self.set_menu_state(MenuState.HOME)
-        
-    def load_book_earliest_slot_menu(self):
+            self.system.set_menu_state(MenuState.HOME)
+
+class MenuReserveEarliestSlot(Menu):
+    def __init__(self, system: "BookingSystem"):
+        super().__init__(system)
+
+    def load(self):
         ''' Menu function for booking a slot '''
-        self._print_title("Book a Slot")
+        self.system._print_title("Book a Slot")
         # try call api and handle any errors that might come with that
         try:
-            data = self.get_matching_available_slots(1)
+            data = self.system.get_matching_available_slots(1)
             
             # parse the data and print to console output
             if data == None or data == []:
@@ -364,7 +274,7 @@ class BookingSystem():
             print("Attempting to book slot...")
             
             try:
-                self.book_matching_slot(slot_id)
+                self.system.book_matching_slot(slot_id)
                 print(f"SUCCESS! Slot {option} has been reserved successfully.")
             except Exception as e:
                 print("Failed to book the requested slot. Please return to the main menu and try again.")
@@ -376,14 +286,18 @@ class BookingSystem():
         finally:
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
-            self.set_menu_state(MenuState.HOME)
+            self.system.set_menu_state(MenuState.HOME)
 
-    def load_unneeded_reservations_menu(self):
-        self._print_title("Cancel Unneeded Reservation")
+class MenuCancelUnneededReservations(Menu):
+    def __init__(self, system: "BookingSystem"):
+        super().__init__(system)
+
+    def load(self):
+        self.system._print_title("Cancel Unneeded Reservation")
         try:
             print("Fetching reservation data...")
-            hotel_data = self.rate_limiter.get_slots_held(self.hotel)
-            band_data = self.rate_limiter.get_slots_held(self.band)
+            hotel_data = self.system.get_slots_held(self.system.hotel)
+            band_data = self.system.get_slots_held(self.system.band)
 
             unmatched_hotels = []
             unmatched_bands = []
@@ -420,7 +334,7 @@ class BookingSystem():
             if option.lower() == "no": return
 
             print("Cleaning up bookings...")
-            self.cleanup_bookings(unmatched_hotels, unmatched_bands)
+            self.system.cleanup_bookings(unmatched_hotels, unmatched_bands)
 
 
         except Exception as e:
@@ -429,9 +343,132 @@ class BookingSystem():
         finally:
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
-            self.set_menu_state(MenuState.HOME)
+            self.system.set_menu_state(MenuState.HOME)
+
+class BookingSystem():
+    TITLE_WIDTH = 50
+    TITLE = "WEDDING BOOKING SYSTEM"
+
+    def __init__(self):
+        config = configparser.ConfigParser()
+        config.read("api.ini")
+
+        # Create an API object to communicate with the hotel API
+        self.hotel  = reservationapi.ReservationApi(config['hotel']['url'],
+                                            config['hotel']['key'],
+                                            int(config['global']['retries']),
+                                            float(config['global']['delay']))
+
+        # Create an API object to communicate with the band API
+        self.band   = reservationapi.ReservationApi(config['band']['url'],
+                                            config['band']['key'],
+                                            int(config['global']['retries']),
+                                            float(config['global']['delay']))
+        
+        # Create an rate limiter to manage API requests
+        self.rate_limiter = RateLimiter(rate_limit=1)
+
+        self.data_cache = dict()
+    
+    # --------- WRAPPER METHODS ---------
+    def get_slots_available(self, object: reservationapi.ReservationApi):
+        return self.rate_limiter.run_task(lambda: object.get_slots_available())
+    
+    def get_slots_held(self, object: reservationapi.ReservationApi):
+        return self.rate_limiter.run_task(lambda: object.get_slots_held())
+    
+    def release_slot(self, object: reservationapi.ReservationApi,  slot_id):
+        return self.rate_limiter.run_task(lambda: object.release_slot(slot_id))
+    
+    def reserve_slot(self, object: reservationapi.ReservationApi,  slot_id):
+        return self.rate_limiter.run_task(lambda: object.reserve_slot(slot_id))
+    # -----------------------------------
+
+    def _reset_stdout(self):
+        ''' Function which clears the output of the terminal and prints the menu title at the top '''
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("=" * self.TITLE_WIDTH)
+        self._print_title(self.TITLE)
+        print("=" * self.TITLE_WIDTH)
+
+    def _print_title(self, title: str):
+        '''
+        Function which prints a formatted title of the form: 
+        <br>|-----| TITLE |-----|
+        '''
+        dash_repeat = int((self.TITLE_WIDTH - (6 + len(title))) / 2)
+        section = "|" + "-" * dash_repeat + "|"
+        print(section + " " + title + " " + section)
+
+    def parse_list(self, raw_data: dict) -> list[str]:
+        ''' Function used in order to parse the slot data for a list of bookings '''
+        out = []
+        for item in raw_data:
+            out.append(f"Slot {item.get('id')}")
+        return out
+    
+    def set_menu_state(self, state: MenuState):
+        ''' Used to change what state the booking system is in. '''
+        self.state = state
+        # ----------------- TITLE -----------------
+        self._reset_stdout()
+        print()
+    
+    def cancel_matching_slot(self, slot_id):
+        ''' Function which attempts to remove a booking of the same slot. If this cant happen, then an exception is thrown '''
+        try:
+            self.rate_limiter.release_slot(self.hotel, slot_id)
+            self.rate_limiter.release_slot(self.band, slot_id)
+        except Exception as e:
+            print(f"An error occured when cancelling slot {slot_id}. You may want to run manual clean-up from the Home Menu.")
+            raise e
+
+    def book_matching_slot(self, slot_id):
+        ''' Function which attempts to book a matching slot. If this cant occur, then the system releases partial bookings. '''
+        # ensure that if any errors occur, the system cleans up after itself
+        try:
+            self.rate_limiter.reserve_slot(self.hotel, slot_id)
+            self.rate_limiter.reserve_slot(self.band, slot_id)
+        except Exception as e:
+            self.rate_limiter.release_slot(self.hotel, slot_id)
+            raise e
+
+    def get_matching_available_slots(self, limit = None):
+        ''' Booking which gets all matching slots for hotel and band. '''
+        hotel_availability = self.rate_limiter.get_slots_available(self.hotel)
+        band_availability = self.rate_limiter.get_slots_available(self.band)
+        matches = []
+
+        for slot in hotel_availability:
+            if slot in band_availability:                
+                matches.append(slot)
+
+        if limit != None: return matches[:limit]
+        else: return matches
+
+    def cleanup_bookings(self, hotel_data: None, band_data: None):
+        ''' Function which attempts to clean up bad, unmatched bookings. '''
+        if hotel_data == None: hotel_data = self.rate_limiter.get_slots_held(self.hotel)
+        if band_data == None: band_data = self.rate_limiter.get_slots_held(self.band)
+
+        for slot in hotel_data:
+            if slot not in band_data:
+                id = slot.get("id")
+                try:
+                    self.rate_limiter.release_slot(self.hotel, id)
+                except Exception as e:
+                    print(f"An error occured trying to cancel hotel slot {id}: {e}. Continuing...")
+        
+        for slot in band_data:
+            if slot not in hotel_data:
+                id = slot.get("id")
+                try:
+                    self.rate_limiter.release_slot(self.band, id)
+                except Exception as e:
+                    print(f"An error occured trying to cancel band slot {id}: {e}. Continuing...")
 
     def start(self):
+        ''' Mainloop for the Booking System. '''
         do_mainloop = True
         self.set_menu_state(MenuState.HOME)
 
@@ -487,31 +524,31 @@ class BookingSystem():
 
             # --------- MENU OPTION 1 ---------
             elif self.state == MenuState.VIEW_CURRENT_HOTEL_BAND_SLOTS:
-                self.load_held_hotel_band_slots_menu()
+                MenuHeldHotelsAndBands(self).load()
 
             # --------- MENU OPTION 2 ---------
             elif self.state == MenuState.VIEW_20_AVAILABLE_SLOTS:
-                self.load_20_hotel_band_available_menu()
+                Menu20AvailableHotelsAndBands(self).load()
 
             # --------- MENU OPTION 3 ---------
             elif self.state == MenuState.BOOK_SLOT:
-                self.load_book_slot_menu()
+                MenuBookedSlots(self).load()
                                 
             # --------- MENU OPTION 4 ---------
             elif self.state == MenuState.CANCEL_HELD_SLOT:
-                self.load_cancel_slot_menu()
+                MenuCancelSlot(self).load()
 
             # --------- MENU OPTION 5 ---------
             elif self.state == MenuState.VIEW_5_UPCOMING_SLOTS:
-                self.load_first_5_slots_menu()
+                MenuUpcoming5Slots(self).load()
 
             # --------- MENU OPTION 6 ---------
             elif self.state == MenuState.RESERVE_EARLIEST_SLOT:
-                self.load_book_earliest_slot_menu()
+                MenuReserveEarliestSlot(self).load()
 
             # --------- MENU OPTION 7 ---------
             elif self.state == MenuState.CANCEL_UNNEEDED_RESERVATION:
-                self.load_unneeded_reservations_menu()
+                MenuCancelUnneededReservations(self).load()
 
 
 if __name__ == "__main__":
