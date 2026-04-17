@@ -48,13 +48,12 @@ class MenuState(Enum):
     '''State Machine variables for the booking system'''
     HOME = 0
     VIEW_CURRENT_HOTEL_BAND_SLOTS = 1
-    VIEW_CURRENT_BAND_SLOTS = 2
+    VIEW_20_AVAILABLE_SLOTS = 2
     BOOK_SLOT = 3
     CANCEL_HELD_SLOT = 4
     VIEW_5_UPCOMING_SLOTS = 5
     RESERVE_EARLIEST_SLOT = 6
     CANCEL_UNNEEDED_RESERVATION = 7
-
 
 class BookingSystem():
     TITLE_WIDTH = 50
@@ -143,7 +142,7 @@ class BookingSystem():
 
     def cleanup_bookings(self, hotel_data: None, band_data: None):
         if hotel_data == None: hotel_data = self.rate_limiter.get_slots_held(self.hotel)
-        if band_data == None: hotel_data = self.rate_limiter.get_slots_held(self.band)
+        if band_data == None: band_data = self.rate_limiter.get_slots_held(self.band)
 
         for slot in hotel_data:
             if slot not in band_data:
@@ -190,8 +189,32 @@ class BookingSystem():
             self.set_menu_state(MenuState.HOME)
 
     
-    def load_held_band_slots_menu():
-        pass
+    def load_20_hotel_band_available_menu(self):
+        self._print_title("Earliest 20 Available Slots")
+        try:
+            hotel_data = self.rate_limiter.get_slots_available(self.hotel)[:20]
+            band_data = self.rate_limiter.get_slots_available(self.hotel)[:20]
+
+            if hotel_data == [] and band_data == []:
+                print("No slots are being currently available")
+                return
+            
+            print(f"{" " * 9}{'HOTEL':<16}{"|":<12}BAND")
+
+            for i in range(max(len(hotel_data), len(band_data))):
+                hotel_slot = f"Slot {hotel_data[i]['id']}" if i < len(hotel_data) else ""
+                band_slot = f"Slot {band_data[i]['id']}" if i < len(band_data) else ""
+                print(f"  {hotel_slot:<23}|  {band_slot}")
+
+            print()
+        except Exception as e:
+            print(f"An error occurred while performing the request: {e}")
+
+        finally:
+            # keep on screen until user confirms theyre finished
+            input("Press Enter to return to the home menu...")
+            self.set_menu_state(MenuState.HOME)
+
 
     def load_book_slot_menu(self):
         ''' Menu function for booking a slot '''
@@ -446,7 +469,7 @@ class BookingSystem():
                     case 1:
                         self.set_menu_state(MenuState.VIEW_CURRENT_HOTEL_BAND_SLOTS)
                     case 2:
-                        pass
+                        self.set_menu_state(MenuState.VIEW_20_AVAILABLE_SLOTS)
                     case 3:
                         self.set_menu_state(MenuState.BOOK_SLOT)
                     case 4:
@@ -467,8 +490,8 @@ class BookingSystem():
                 self.load_held_hotel_band_slots_menu()
 
             # --------- MENU OPTION 2 ---------
-            elif self.state == MenuState.VIEW_CURRENT_BAND_SLOTS:
-                self.load_held_band_slots_menu()
+            elif self.state == MenuState.VIEW_20_AVAILABLE_SLOTS:
+                self.load_20_hotel_band_available_menu()
 
             # --------- MENU OPTION 3 ---------
             elif self.state == MenuState.BOOK_SLOT:
