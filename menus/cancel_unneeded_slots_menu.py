@@ -5,7 +5,7 @@ class MenuCancelUnneededReservations(Menu):
     def __init__(self, hotel: reservationapi.ReservationApi, band: reservationapi.ReservationApi):
         super().__init__(hotel, band)
 
-    def load(self):
+    def load(self) -> MenuState:
         Menu._print_title("Cancel Unneeded Reservation")
         try:
             print("Fetching reservation data...")

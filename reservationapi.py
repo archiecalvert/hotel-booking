@@ -20,6 +20,29 @@ from exceptions import (
     BadRequestError, InvalidTokenError, BadSlotError, NotProcessedError,
     SlotUnavailableError,ReservationLimitError)
 
+class RateLimiter:
+    '''
+    Rate Limiter for API calls.
+    To use:
+        <br>- Create Object
+        <br>- Execute an API request by:
+            rate_limiter.run_task(lambda: function(arguments))
+          <br>or use one of the provided wrapper methods
+    '''
+    def __init__(self, rate_limit):
+        self.rate_limit = float(rate_limit)
+        self.last_timestamp = 0
+    
+    def run_task(self, task):
+        elapsed_time = time.time() - self.last_timestamp
+
+        if elapsed_time < self.rate_limit:
+            time.sleep(self.rate_limit - elapsed_time)
+        
+        self.last_timestamp = time.time()
+        return task()
+
+
 class ReservationApi:
     def __init__(self, base_url: str, token: str, retries: int, delay: float):
         """ Create a new ReservationApi to communicate with a reservation
@@ -31,10 +54,11 @@ class ReservationApi:
             retries: The maximum number of attempts to make for each request.
             delay: A delay to apply to each request to prevent server overload.
         """
-        self.base_url = base_url
-        self.token    = token
-        self.retries  = retries
-        self.delay    = delay
+        self.base_url     = base_url
+        self.token        = token
+        self.retries      = retries
+        self.delay        = delay
+        self.rate_limiter = RateLimiter(1)
 
     def _reason(self, req: requests.Response) -> str:
         """Obtain the reason associated with a response"""
@@ -140,21 +164,21 @@ class ReservationApi:
     def get_slots_available(self):
         """Obtain the list of slots currently available in the system"""
         # Your code goes here
-        return self._send_request("GET", f"{self.base_url}/reservation/available")
+        return self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation/available"))
 
     def get_slots_held(self):
         """Obtain the list of slots currently held by the client"""
         # Your code goes here
-        return self._send_request("GET", f"{self.base_url}/reservation")
+        return self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation"))
 
     def release_slot(self, slot_id):
         """Release a slot currently held by the client"""
         # Your code goes here
-        return self._send_request("DELETE", f"{self.base_url}/reservation/{slot_id}")
+        return self.rate_limiter.run_task(lambda: self._send_request("DELETE", f"{self.base_url}/reservation/{slot_id}"))
 
 
     def reserve_slot(self, slot_id):
         """Attempt to reserve a slot for the client"""
         # Your code goes here
-        return self._send_request("POST", f"{self.base_url}/reservation/{slot_id}")
+        return self.rate_limiter.run_task(lambda: self._send_request("POST", f"{self.base_url}/reservation/{slot_id}"))
 

@@ -5,7 +5,7 @@ class MenuUpcoming5Slots(Menu):
     def __init__(self, hotel: reservationapi.ReservationApi, band: reservationapi.ReservationApi):
         super().__init__(hotel, band)
 
-    def load(self):
+    def load(self) -> MenuState:
         Menu._print_title("Available Slots (Limit of 5)")
         try:
             print("Fetching data...")
