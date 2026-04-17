@@ -7,13 +7,28 @@ class MenuHome(Menu):
 
     def load(self) -> MenuState:
         # ------------- CURRENT SLOTS -------------
-        booked_slots = self.parse_list(self.hotel.get_slots_held())
-        # if we have slots booked, then we print them
-        if len(booked_slots) > 0:
-            Menu._print_title("CURRENTLY HELD SLOTS")
-            for slot in booked_slots:
-                print(slot)
-            print()
+        print("Fetching booking data...")
+        try:
+            hotel_data = self.hotel.get_slots_held()
+            band_data = self.band.get_slots_held()
+
+            if not (len(hotel_data) == 0 and len(band_data) == 0):  
+                print()
+                Menu._print_title("CURRENT BOOKINGS")
+                print()
+                print(f"\033[95m\033[4m{" " * 9}{'HOTEL':<16}{"|":<13}{'BAND':<16}\033[0m")
+                for i in range(max(len(hotel_data), len(band_data))):
+                    hotel_slot = f"Slot {hotel_data[i]['id']}" if i < len(hotel_data) else ""
+                    band_slot = f"Slot {band_data[i]['id']}" if i < len(band_data) else ""
+                    print(f"\033[95m  {hotel_slot:<23}|  {band_slot}\033[0m")
+                
+                print()
+            else:
+                print("\033[95mNo bookings found\033[0m")
+                print()
+
+        except Exception as e:
+            print("Error fetching held slots. Please try again later.")
 
         # --------------- OPERATIONS --------------
         Menu._print_title(" OPERATIONS ")

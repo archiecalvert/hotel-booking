@@ -2,7 +2,7 @@ from enum import Enum
 import reservationapi
 import os
 
-TITLE_WIDTH = 50
+TITLE_WIDTH = 54
 TITLE = "WEDDING BOOKING SYSTEM"
 
 class MenuState(Enum):

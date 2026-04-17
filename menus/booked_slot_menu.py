@@ -45,7 +45,7 @@ class MenuBookedSlots(Menu):
     
             try:
                 self.book_matching_slot(option)
-                print(f"SUCCESS! Slot {option} has been reserved successfully.")
+                print(f"\033[32mSUCCESS:\033[0m Slot {option} has been reserved successfully.")
             except Exception as e:
                 print("Failed to book the requested slot. Please return to the main menu and try again.")
                 raise e

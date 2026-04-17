@@ -32,6 +32,7 @@ class RateLimiter:
     def __init__(self, rate_limit):
         self.rate_limit = float(rate_limit)
         self.last_timestamp = 0
+
     
     def run_task(self, task):
         elapsed_time = time.time() - self.last_timestamp
@@ -54,11 +55,13 @@ class ReservationApi:
             retries: The maximum number of attempts to make for each request.
             delay: A delay to apply to each request to prevent server overload.
         """
-        self.base_url     = base_url
-        self.token        = token
-        self.retries      = retries
-        self.delay        = delay
-        self.rate_limiter = RateLimiter(1)
+        self.base_url       = base_url
+        self.token          = token
+        self.retries        = retries
+        self.delay          = delay
+        self.rate_limiter   = RateLimiter(1)
+        self.dirty_cache    = True # if this is ever true, then the data in the cache needs refreshing
+        self.booking_cache  = []
 
     def _reason(self, req: requests.Response) -> str:
         """Obtain the reason associated with a response"""
@@ -129,8 +132,7 @@ class ReservationApi:
             # 5xx responses indicate a server-side error, show a warning
             # (including the try number).
             elif str(response.status_code)[0] == "5":
-                print(f"WARNING: A server-side error occured when trying to access the API (Error Code {response.status_code})")
-                print(f"Performing retry {i+1}/{self.retries} in {iteration_delay} seconds")
+                print(f"\033[33mWARNING\033[0m: A server-side error occured when trying to access the API (Error Code {response.status_code}). Performing retry {i+1}/{self.retries} in {iteration_delay} seconds")
                 time.sleep(iteration_delay) # uses exponential backoff
                 continue
 
@@ -169,16 +171,26 @@ class ReservationApi:
     def get_slots_held(self):
         """Obtain the list of slots currently held by the client"""
         # Your code goes here
-        return self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation"))
+        if not self.dirty_cache:
+            return self.booking_cache
+        else:
+            self.booking_cache = self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation"))
+            self.dirty_cache = False
+            return self.booking_cache
+
 
     def release_slot(self, slot_id):
         """Release a slot currently held by the client"""
         # Your code goes here
-        return self.rate_limiter.run_task(lambda: self._send_request("DELETE", f"{self.base_url}/reservation/{slot_id}"))
+        res = self.rate_limiter.run_task(lambda: self._send_request("DELETE", f"{self.base_url}/reservation/{slot_id}"))
+        self.booking_cache.remove({"id": str(slot_id)})
+        return res
 
 
     def reserve_slot(self, slot_id):
         """Attempt to reserve a slot for the client"""
         # Your code goes here
-        return self.rate_limiter.run_task(lambda: self._send_request("POST", f"{self.base_url}/reservation/{slot_id}"))
+        res = self.rate_limiter.run_task(lambda: self._send_request("POST", f"{self.base_url}/reservation/{slot_id}"))
+        self.booking_cache.append({"id": str(slot_id)})
+        return res
 

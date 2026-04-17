@@ -42,7 +42,7 @@ class MenuCancelSlot(Menu):
             
             print("Attempting to cancel slot...")
             self.cancel_matching_slot(option)
-            print(f"SUCCESS! Slot {option} has been cancelled successfully.")
+            print(f"\033[32mSUCCESS:\033[0m Slot {option} has been cancelled successfully.")
 
         except Exception as e:
             print(f"An error occurred while performing the request: {e}")

@@ -13,16 +13,17 @@ class MenuHeldHotelsAndBands(Menu):
             band_data = self.band.get_slots_held()
 
             if hotel_data == [] and band_data == []:
-                print("No slots are being currently held")
+                print("\033[95mNo bookings found\033[0m")
+                print()
                 return
             
-            print(f"{" " * 9}{'HOTEL':<16}{"|":<12}BAND")
-
+            print()
+            print(f"\033[95m\033[4m{" " * 9}{'HOTEL':<16}{"|":<13}{'BAND':<16}\033[0m")
             for i in range(max(len(hotel_data), len(band_data))):
                 hotel_slot = f"Slot {hotel_data[i]['id']}" if i < len(hotel_data) else ""
                 band_slot = f"Slot {band_data[i]['id']}" if i < len(band_data) else ""
-                print(f"  {hotel_slot:<23}|  {band_slot}")
-
+                print(f"\033[95m  {hotel_slot:<23}|  {band_slot}\033[0m")
+            
             print()
 
         except Exception as e:
