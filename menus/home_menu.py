@@ -41,29 +41,32 @@ class MenuHome(Menu):
         print("7. Cancel unneeded reservations")
         print("8. Quit\n")
 
-        option = None
-        while option == None:
-            try:
-                option = int(input("Enter operation number: "))
-            except:
-                print("Invalid operation selected.")
-        
-        match option:
-            case 1:
-                return MenuState.VIEW_CURRENT_HOTEL_BAND_SLOTS
-            case 2:
-                return MenuState.VIEW_20_AVAILABLE_SLOTS
-            case 3:
-                return MenuState.BOOK_SLOT
-            case 4:
-                return MenuState.CANCEL_HELD_SLOT
-            case 5:
-                return MenuState.VIEW_5_UPCOMING_SLOTS
-            case 6:
-                return MenuState.RESERVE_EARLIEST_SLOT
-            case 7:
-                return MenuState.CANCEL_UNNEEDED_RESERVATION
-            case 8:
-                return MenuState.QUIT
-            case _:
-                print("Invalid operation selected.")
+        # This loop will run forever until the correct option has been selected
+        while True:
+            option = None
+            while option == None:
+                try:
+                    option = int(input("Enter operation number: "))
+                except:
+                    print("Invalid operation selected.")
+            
+            match option:
+                case 1:
+                    return MenuState.VIEW_CURRENT_HOTEL_BAND_SLOTS
+                case 2:
+                    return MenuState.VIEW_20_AVAILABLE_SLOTS
+                case 3:
+                    return MenuState.BOOK_SLOT
+                case 4:
+                    return MenuState.CANCEL_HELD_SLOT
+                case 5:
+                    return MenuState.VIEW_5_UPCOMING_SLOTS
+                case 6:
+                    return MenuState.RESERVE_EARLIEST_SLOT
+                case 7:
+                    return MenuState.CANCEL_UNNEEDED_RESERVATION
+                case 8:
+                    return MenuState.QUIT
+                case _:
+                    print("Invalid operation selected.")
+                

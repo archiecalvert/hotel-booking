@@ -10,7 +10,9 @@ class MenuCancelSlot(Menu):
         Menu._print_title("Cancel a Held Slot")
         # try call api and handle any errors that might come with that
         try:
-            data = self.hotel.get_slots_held()
+            hotel_data = self.hotel.get_slots_held()
+            band_data = self.band.get_slots_held()
+            data = self.matchup_slots(hotel_data, band_data)
             
             # parse the data and print to console output
             if data == None or data == []:
@@ -22,23 +24,11 @@ class MenuCancelSlot(Menu):
             print()
 
             # --- BOOKING LOGIC ---
-            option = None
-            # poll to see if user wants to continue
-            while option == None:
-                option = input("Do you wish to continue with the request? (Yes/No): ")
-                if option.lower() != "yes" and option.lower() != "no":
-                    print("Invalid option selected.")
-                    option = None
-            
-            if option.lower() == "no": return
+            option = self.poll_yes_no("Do you wish to continue with the request? (Yes/No): ")            
+            if option == "no": return
 
             # poll for relevant slot
-            option = None
-            while option == None:
-                try:
-                    option = int(input("Enter Slot ID: "))
-                except:
-                    print("Invalid slot ID.")
+            option = self.poll_slot_id("Enter Slot ID: ", data)
             
             print("Attempting to cancel slot...")
             self.cancel_matching_slot(option)

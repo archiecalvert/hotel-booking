@@ -45,7 +45,7 @@ class RateLimiter:
 
 
 class ReservationApi:
-    def __init__(self, base_url: str, token: str, retries: int, delay: float):
+    def __init__(self, base_url: str, token: str, retries: int, delay: float, max_bookings_count: int = 2):
         """ Create a new ReservationApi to communicate with a reservation
         server.
 
@@ -62,6 +62,7 @@ class ReservationApi:
         self.rate_limiter   = RateLimiter(1)
         self.dirty_cache    = True # if this is ever true, then the data in the cache needs refreshing
         self.booking_cache  = []
+        self.max_bookings_count = max_bookings_count
 
     def _reason(self, req: requests.Response) -> str:
         """Obtain the reason associated with a response"""

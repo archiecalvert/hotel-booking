@@ -37,13 +37,7 @@ class MenuCancelUnneededReservations(Menu):
                 print("No unnmatched bookings found.")
                 return
             
-            option = None
-            while option == None:
-                option = input("Would you like to remove these bookings? (Yes/No): ")
-                if option.lower() != "yes" and option.lower() != "no":
-                    print("Invalid option selected.")
-                    option = None
-            
+            option = self.poll_yes_no("Would you like to remove these bookings? (Yes/No): ")
             if option.lower() == "no": return
 
             print("Cleaning up bookings...")

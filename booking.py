@@ -2,14 +2,14 @@
 import reservationapi
 import configparser
 from menus.menu                                     import (Menu, MenuState)
-from menus.booked_slot_menu                         import MenuBookedSlots
+from menus.book_slot_menu                           import MenuBookedSlots
 from menus.cancel_slot_menu                         import MenuCancelSlot
 from menus.cancel_unneeded_slots_menu               import MenuCancelUnneededReservations
 from menus.home_menu                                import MenuHome
-from menus.hotel_and_band_reservations_held_menu    import MenuHeldHotelsAndBands
+from menus.held_individual_slots_menu               import MenuHeldHotelsAndBands
 from menus.next_20_slots_menu                       import Menu20AvailableHotelsAndBands
 from menus.reserve_earliest_slot_menu               import MenuReserveEarliestSlot
-from menus.upcoming_5_slot_menu                     import MenuUpcoming5Slots
+from menus.upcoming_5_slots_menu                    import MenuUpcoming5Slots
 
 class BookingSystem():
     
@@ -30,9 +30,14 @@ class BookingSystem():
                                             float(config['global']['delay']))
         
         self.data_cache = dict()
+        
     
     def set_menu_state(self, state: MenuState):
-        ''' Used to change what state the booking system is in. '''
+        ''' Used to change what state the booking system is in. 
+        
+        Args:
+            state(MenuState): The state in which the system should be transitioned to
+        '''
         self.state = state
         # ----------------- TITLE -----------------
         Menu._reset_stdout()

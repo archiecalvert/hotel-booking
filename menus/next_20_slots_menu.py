@@ -16,6 +16,8 @@ class Menu20AvailableHotelsAndBands(Menu):
                 print("No slots are being currently available")
                 return
             
+            # creates a grid of the next 20 slots in the form
+            #               |   HOTEL   |   BAND    |
             print()
             print(f"\033[95m\033[4m{" " * 9}{'HOTEL':<16}{"|":<13}{'BAND':<16}\033[0m")
             for i in range(max(len(hotel_data), len(band_data))):

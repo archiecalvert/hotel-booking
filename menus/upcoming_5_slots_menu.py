@@ -10,12 +10,16 @@ class MenuUpcoming5Slots(Menu):
         try:
             print("Fetching data...")
             slot_data = self.get_matching_available_slots(5)
+            
             if slot_data != None:
+                print()
+                print(f"\033[95m\033[4m{" " * 7}MATCHING SLOTS{" " * 7}\033[0m")
                 for slot in self.parse_list(slot_data):
-                    print(slot)
+                    print(f"\033[95m{" " * 2}{slot}\033[0m")
+                print()
             else:
                 print("No current matching slots are available.")
-    
+
         except Exception as e:
             print(f"An error occurred while performing the request: {e}")
 
