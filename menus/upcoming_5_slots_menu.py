@@ -8,7 +8,7 @@ class MenuUpcoming5Slots(Menu):
     def load(self) -> MenuState:
         Menu._print_title("Available Slots (Limit of 5)")
         try:
-            print("Fetching data...")
+            print("Fetching booking data...")
             slot_data = self.get_matching_available_slots(5)
             
             if slot_data != None:
@@ -18,7 +18,8 @@ class MenuUpcoming5Slots(Menu):
                     print(f"\033[95m{" " * 2}{slot}\033[0m")
                 print()
             else:
-                print("No current matching slots are available.")
+                print("\033[95mNo current matching slots are available.\033[0m")
+                print()
 
         except Exception as e:
             print(f"An error occurred while performing the request: {e}")

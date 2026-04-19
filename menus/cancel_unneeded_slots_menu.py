@@ -29,9 +29,11 @@ class MenuCancelUnneededReservations(Menu):
                     found = True
             
             if found:
-                print("Found unmatched bookings:")
+                print()
+                print("Found unmatched bookings:\033[95m")
                 for x in out:
                     print(x)
+                print("\033[0m")
             else:
                 print("No unnmatched bookings found.")
                 return
@@ -41,6 +43,7 @@ class MenuCancelUnneededReservations(Menu):
 
             print("Cleaning up bookings...")
             self.cleanup_bookings()
+            print(f"\033[32mSUCCESS:\033[0m Bookings have been cleared up.")
 
 
         except Exception as e:

@@ -1,4 +1,4 @@
-from .menu import (Menu, MenuState)
+from .menu import (Menu, MenuState, BookingType)
 import reservationapi
 import math
 class MenuBookedSlots(Menu):
@@ -10,28 +10,40 @@ class MenuBookedSlots(Menu):
         Menu._print_title("Book a Slot")
         # try call api and handle any errors that might come with that
         try:
+            booking_option = self.poll_individual_matching_booking()
+            if booking_option == None:
+                return
+
             print("Fetching booking data...")
 
             # check that the maximum number of bookings haven't been made.
             hotel_data, band_data = self.get_slots_held()
 
-            if len(hotel_data) >= self.hotel.max_bookings_count and len(band_data) >= self.band.max_bookings_count:
-                print("The maximum number of hotel and band bookings has been made. Please cancel a booking from each to continue.")
-                return
-            
-            elif len(hotel_data) >= self.hotel.max_bookings_count:
-                print("The maximum number of hotel bookings have been made. Please cancel one to continue")
-                return
-            
-            elif len(band_data) >= self.band.max_bookings_count:
-                print("The maximum number of band bookings have been made. Please cancel one to continue")
-                return
+            # set 'data' to the corresponding option chosen by the user
+            if booking_option == BookingType.HOTEL:
+                if len(hotel_data) >= self.hotel.max_bookings_count:
+                    print("\033[95mThe maximum number of hotel bookings have been made. Please cancel one to continue\033[0m")
+                    print()
+                    return
+                data = self.hotel.get_slots_available()
+            elif booking_option == BookingType.BAND:
+                if len(band_data) >= self.band.max_bookings_count:
+                    print("\033[95mThe maximum number of band bookings have been made. Please cancel one to continue\033[0m")
+                    print()
+                    return
+                data = self.band.get_slots_available()
+            elif booking_option == BookingType.MATCHING:
+                if len(hotel_data) >= self.hotel.max_bookings_count and len(band_data) >= self.band.max_bookings_count:
+                    print("\033[95mThe maximum number of hotel and band bookings has been made. Please cancel a booking from each to continue.\033[0m")
+                    print()
+                    return
+                data = self.get_matching_available_slots()
+            else: return
 
-            data = self.get_matching_available_slots()
-            
             # parse the data and print to console output
             if data == None or data == []:
-                print("No available slots are remaining")
+                print("\033[95mNo available slots are remaining\033[0m")
+                print()
                 return
 
 
@@ -59,7 +71,11 @@ class MenuBookedSlots(Menu):
             print("Attempting to book slot...")
     
             try:
-                self.book_matching_slot(option)
+                match booking_option:
+                    case BookingType.HOTEL:    self.hotel.reserve_slot(option)
+                    case BookingType.BAND:     self.band.reserve_slot(option)
+                    case BookingType.MATCHING: self.book_matching_slot(option)
+
                 print(f"\033[32mSUCCESS:\033[0m Slot {option} has been reserved successfully.")
             except Exception as e:
                 print("Failed to book the requested slot. Please return to the main menu and try again.")

@@ -18,6 +18,11 @@ class MenuState(Enum):
     CANCEL_UNNEEDED_RESERVATION = 7
     QUIT = 8
 
+class BookingType(Enum):
+    HOTEL = 0
+    BAND = 1
+    MATCHING = 2
+
 class Menu():
 
     def __init__(self, hotel: reservationapi.ReservationApi, band: reservationapi.ReservationApi):
@@ -103,6 +108,39 @@ class Menu():
                 print("Invalid slot ID.")
 
         return option
+    
+    def poll_individual_matching_booking(self) -> str:
+        ''' Function which polls for a whether they want to make an individual booking or a 
+        matching booking.
+        
+        Returns:
+            BookingType | None: what kind of booking the user selected, or none if the operation was cancelled
+        '''
+        option = None
+        while option == None:
+            try:
+                print("What kind of booking would you like to make:")
+                print("\033[95m1. Hotel")
+                print("2. Band")
+                print("3. Matching slot")
+                print("4. Cancel Operation\033[0m")
+                print()
+                option = int(input("Please enter your corresponding option number (1, 2, 3, 4): "))
+
+                if option == 1:
+                    return BookingType.HOTEL
+                elif option == 2:
+                    return BookingType.BAND
+                elif option == 3:
+                    return BookingType.MATCHING
+                elif option == 4:
+                    return None
+                else:
+                    print("Invalid option selected.")
+                    option = None
+            except:
+                print("Invalid option selected.")
+
 
     def matchup_slots(self, hotel_data: list[dict], band_data: list[dict]) -> list[dict]:
         ''' Function which takes in two booking lists from the API, and returns the slots which match up
@@ -173,22 +211,22 @@ class Menu():
             raise e
 
 
-    def get_slots_available(self):
+    def get_slots_available(self, bypass_cache:bool = False):
         with ThreadPoolExecutor() as executor:
-            t1 = executor.submit(self.hotel.get_slots_available)
-            t2 = executor.submit(self.band.get_slots_available)
+            t1 = executor.submit(lambda: self.hotel.get_slots_available(bypass_cache))
+            t2 = executor.submit(lambda: self.band.get_slots_available(bypass_cache))
 
             return (t1.result(), t2.result())
     
 
-    def get_matching_available_slots(self, limit:int = None) -> list[dict]:
+    def get_matching_available_slots(self, limit:int = None, bypass_cache:bool = False) -> list[dict]:
         ''' Function which gets all matching slots for hotel and band.
         
         Args:
             limit(int): (optional) The number of returned items
         
         '''
-        hotel_availability, band_availability = self.get_slots_available()
+        hotel_availability, band_availability = self.get_slots_available(bypass_cache)
         
         matches = self.matchup_slots(hotel_availability, band_availability)
 

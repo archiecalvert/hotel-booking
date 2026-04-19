@@ -15,7 +15,6 @@ import simplejson
 import warnings
 import time
 
-from concurrent.futures import ThreadPoolExecutor
 from requests.exceptions import HTTPError
 from exceptions import (
     BadRequestError, InvalidTokenError, BadSlotError, NotProcessedError,
@@ -53,18 +52,28 @@ class Cache:
         self.data = []
 
     def dirty(self) -> bool:
+        ''' Function which returns whether the cache is expired. '''
         elapsed_time = time.time() - self.last_access
         return elapsed_time > self.expire_time
     
     def update(self, data):
+        ''' Function which is used to set the data in the cache. (Entirely) '''
         self.data = data
         self.last_access = time.time()
 
     def append(self, item):
+        ''' Function which adds an item to the data cache. '''
         self.data.append(item)
 
     def remove(self, item):
-        self.data.remove(item)
+        ''' Function which removes an item from the cache. If not present, nothing will happen. '''
+        if item in self.data:
+            self.data.remove(item)
+    
+    def make_dirty(self):
+        ''' Function which can manually set the cache to be exipred. '''
+        self.last_access = 0
+
 
 class ReservationApi:
     def __init__(self, name, base_url: str, token: str, retries: int, delay: float, max_bookings_count: int = 2):
@@ -77,15 +86,15 @@ class ReservationApi:
             retries: The maximum number of attempts to make for each request.
             delay: A delay to apply to each request to prevent server overload.
         """
-        self.name           = name
-        self.base_url       = base_url
-        self.token          = token
-        self.retries        = retries
-        self.delay          = delay
-        self.rate_limiter   = RateLimiter(1, name)
-        self.booking_cache = Cache(5)
-        self.available_slot_cache = Cache(5)
-        self.max_bookings_count = max_bookings_count
+        self.name                   = name
+        self.base_url               = base_url
+        self.token                  = token
+        self.retries                = retries
+        self.delay                  = delay
+        self.rate_limiter           = RateLimiter(1, name)
+        self.booking_cache          = Cache(60)
+        self.available_slot_cache   = Cache(60)
+        self.max_bookings_count     = max_bookings_count
 
     def _reason(self, req: requests.Response) -> str:
         """Obtain the reason associated with a response"""
@@ -176,6 +185,10 @@ class ReservationApi:
                 raise NotProcessedError()
             
             elif response.status_code == 409:
+                # can happen if the caches becomes out of sync.
+                # to avoid this, manually expire the cache
+                self.booking_cache.make_dirty()
+                self.available_slot_cache.make_dirty()
                 raise SlotUnavailableError()
             
             elif response.status_code == 451:
@@ -194,25 +207,25 @@ class ReservationApi:
         # exception.
         raise Exception("Max number of retries have been attempted.")
 
-    def get_slots_available(self):
+    def get_slots_available(self, bypass_cache:bool = False):
         """Obtain the list of slots currently available in the system"""
         # Your code goes here
-        if not self.available_slot_cache.dirty():
-            print(f"\033[96mCACHE ({self.name})\033[0m: Using cached available bookings")
+        if not bypass_cache and not self.available_slot_cache.dirty():
+            # print(f"\033[96mCACHE ({self.name})\033[0m: Using cached available bookings")
             return self.available_slot_cache.data
         else:
-            print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached available bookings. Cache will expire in {self.available_slot_cache.expire_time} seconds")
+            # print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached available bookings. Cache will expire in {self.available_slot_cache.expire_time} seconds")
             self.available_slot_cache.update(self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation/available")))
             return self.available_slot_cache.data
 
-    def get_slots_held(self):
+    def get_slots_held(self, bypass_cache:bool = False):
         """Obtain the list of slots currently held by the client"""
         # Your code goes here
-        if not self.booking_cache.dirty():
-            print(f"\033[96mCACHE ({self.name})\033[0m: Using cached held bookings")
+        if not bypass_cache and not self.booking_cache.dirty():
+            # print(f"\033[96mCACHE ({self.name})\033[0m: Using cached held bookings")
             return self.booking_cache.data
         else:
-            print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached held bookings. Cache will expire in {self.booking_cache.expire_time} seconds")
+            # print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached held bookings. Cache will expire in {self.booking_cache.expire_time} seconds")
             self.booking_cache.update(self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation")))
             return self.booking_cache.data
 
@@ -221,6 +234,7 @@ class ReservationApi:
         # Your code goes here
         res = self.rate_limiter.run_task(lambda: self._send_request("DELETE", f"{self.base_url}/reservation/{slot_id}"))
         self.booking_cache.remove({"id": str(slot_id)})
+        self.available_slot_cache.append({"id": str(slot_id)})
         return res
 
 
@@ -229,5 +243,6 @@ class ReservationApi:
         # Your code goes here
         res = self.rate_limiter.run_task(lambda: self._send_request("POST", f"{self.base_url}/reservation/{slot_id}"))
         self.booking_cache.append({"id": str(slot_id)})
+        self.available_slot_cache.remove({"id": str(slot_id)})
         return res
 
