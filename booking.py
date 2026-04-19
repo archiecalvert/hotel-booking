@@ -18,13 +18,15 @@ class BookingSystem():
         config.read("api.ini")
 
         # Create an API object to communicate with the hotel API
-        self.hotel  = reservationapi.ReservationApi(config['hotel']['url'],
+        self.hotel  = reservationapi.ReservationApi("Hotel",
+                                            config['hotel']['url'],
                                             config['hotel']['key'],
                                             int(config['global']['retries']),
                                             float(config['global']['delay']))
 
         # Create an API object to communicate with the band API
-        self.band   = reservationapi.ReservationApi(config['band']['url'],
+        self.band   = reservationapi.ReservationApi("Band",
+                                            config['band']['url'],
                                             config['band']['key'],
                                             int(config['global']['retries']),
                                             float(config['global']['delay']))

@@ -10,8 +10,7 @@ class MenuCancelSlot(Menu):
         Menu._print_title("Cancel a Held Slot")
         # try call api and handle any errors that might come with that
         try:
-            hotel_data = self.hotel.get_slots_held()
-            band_data = self.band.get_slots_held()
+            hotel_data, band_data = self.get_slots_held()
             data = self.matchup_slots(hotel_data, band_data)
             
             # parse the data and print to console output

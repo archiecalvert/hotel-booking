@@ -1,6 +1,7 @@
 from enum import Enum
 import reservationapi
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 TITLE_WIDTH = 54
 TITLE = "WEDDING BOOKING SYSTEM"
@@ -26,94 +27,7 @@ class Menu():
 
     def load(self) -> MenuState:
         return
-
-    def cancel_matching_slot(self, slot_id: int):
-        ''' Function which attempts to remove a booking of the same slot. If this cant happen, then an exception is thrown
-        
-        Args:
-            slot_id(int): The id of the target slot from the ReservationApi
-        '''
-        try:
-            self.hotel.release_slot(slot_id)
-            self.band.release_slot(slot_id)
-        except Exception as e:
-            print(f"An error occured when cancelling slot {slot_id}. You may want to run manual clean-up from the Home Menu.")
-            raise e
-
-    def book_matching_slot(self, slot_id: int):
-        ''' Function which attempts to book a matching slot. If this cant occur, then the system releases partial bookings.
-        
-        Args:
-            slot_id(int): The id of the target slot from the ReservationApi
-        '''
-        # ensure that if any errors occur, the system cleans up after itself
-        try:
-            self.hotel.reserve_slot(slot_id)
-            self.band.reserve_slot(slot_id)
-        except Exception as e:
-            self.hotel.release_slot(slot_id)
-            raise e
-
-    def matchup_slots(self, hotel_data: list[dict], band_data: list[dict]) -> list[dict]:
-        ''' Function which takes in two booking lists from the API, and returns the slots which match up
-        
-        Args:
-            hotel_data(list[dict]): The hotel slot data from the ReservationApi
-            band_data(list[dict]): The band slot data from the ReservationApi
-
-        Returns:
-            list[dict]: An array of matched slots.
-
-        '''
-        matches = []
-
-        for slot in hotel_data:
-            if slot in band_data:                
-                matches.append(slot)
-
-        return matches
-
-    def get_matching_available_slots(self, limit:int = None) -> list[dict]:
-        ''' Booking which gets all matching slots for hotel and band.
-        
-        Args:
-            limit(int): (optional) The number of returned items
-        
-        '''
-        hotel_availability = self.hotel.get_slots_available()
-        band_availability = self.band.get_slots_available()
-        
-        matches = self.matchup_slots(hotel_availability, band_availability)
-
-        if limit != None: return matches[:limit]
-        else: return matches
-
-    def cleanup_bookings(self, hotel_data:list[dict] = None, band_data:list[dict] = None):
-        ''' Function which attempts to clean up bad, unmatched bookings.
-        
-        Args:
-            hotel_data(list[dict]): Hotel slot data returned from the ReservationApi
-            band_data(list[dict]): Band slot data returned from the ReservationApi
-        '''
-        if hotel_data == None: hotel_data = self.hotel.get_slots_held()
-        if band_data == None: band_data = self.band.get_slots_held()
-
-        for slot in hotel_data:
-            if slot not in band_data:
-                id = slot.get("id")
-                try:
-                    self.hotel.release_slot(id)
-                except Exception as e:
-                    print(f"An error occured trying to cancel hotel slot {id}: {e}. Continuing...")
-        
-        for slot in band_data:
-            if slot not in hotel_data:
-                id = slot.get("id")
-                try:
-                    self.band.release_slot(id)
-                except Exception as e:
-                    print(f"An error occured trying to cancel band slot {id}: {e}. Continuing...")
-
+    
     def _reset_stdout():
         ''' Function which clears the output of the terminal and prints the menu title at the top '''
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -189,3 +103,119 @@ class Menu():
                 print("Invalid slot ID.")
 
         return option
+
+    def matchup_slots(self, hotel_data: list[dict], band_data: list[dict]) -> list[dict]:
+        ''' Function which takes in two booking lists from the API, and returns the slots which match up
+        
+        Args:
+            hotel_data(list[dict]): The hotel slot data from the ReservationApi
+            band_data(list[dict]): The band slot data from the ReservationApi
+
+        Returns:
+            list[dict]: An array of matched slots.
+
+        '''
+        matches = []
+
+        for slot in hotel_data:
+            if slot in band_data:                
+                matches.append(slot)
+
+        return matches
+
+    def get_slots_held(self) -> tuple:
+        ''' Function which gets the held slots from the APIs asynchronously.
+        
+        Returns:
+            (list[dict], list[dict]): A tuple of (hotel_data, band_data)
+        '''
+        with ThreadPoolExecutor() as executor:
+            t1 = executor.submit(self.hotel.get_slots_held)
+            t2 = executor.submit(self.band.get_slots_held)
+
+            return (t1.result(), t2.result())
+    
+    def cancel_matching_slot(self, slot_id: int):
+        ''' Function which attempts to remove a booking of the same slot. If this cant happen, then an exception is thrown
+        
+        Args:
+            slot_id(int): The id of the target slot from the ReservationApi
+        '''
+        try:
+            with ThreadPoolExecutor() as executor:
+                t1 = executor.submit(lambda:self.hotel.release_slot(slot_id))
+                t2 = executor.submit(lambda:self.band.release_slot(slot_id))
+
+                #  raise exepctions if they occur
+                t1.result()
+                t2.result()
+        except Exception as e:
+            print(f"An error occured when cancelling slot {slot_id}. You may want to run manual clean-up from the Home Menu.")
+            raise e
+
+    def book_matching_slot(self, slot_id: int):
+        ''' Function which attempts to book a matching slot. If this cant occur, then the system releases partial bookings.
+        
+        Args:
+            slot_id(int): The id of the target slot from the ReservationApi
+        '''
+        # ensure that if any errors occur, the system cleans up after itself
+        try:
+            with ThreadPoolExecutor() as executor:
+                t1 = executor.submit(lambda:self.hotel.reserve_slot(slot_id))
+                t2 = executor.submit(lambda:self.band.reserve_slot(slot_id))
+
+                #  raise exepctions if they occur
+                t1.result()
+                t2.result()
+        except Exception as e:
+            self.hotel.release_slot(slot_id)
+            raise e
+
+
+    def get_slots_available(self):
+        with ThreadPoolExecutor() as executor:
+            t1 = executor.submit(self.hotel.get_slots_available)
+            t2 = executor.submit(self.band.get_slots_available)
+
+            return (t1.result(), t2.result())
+    
+
+    def get_matching_available_slots(self, limit:int = None) -> list[dict]:
+        ''' Function which gets all matching slots for hotel and band.
+        
+        Args:
+            limit(int): (optional) The number of returned items
+        
+        '''
+        hotel_availability, band_availability = self.get_slots_available()
+        
+        matches = self.matchup_slots(hotel_availability, band_availability)
+
+        if limit != None: return matches[:limit]
+        else: return matches
+
+    def cleanup_bookings(self):
+        ''' Function which attempts to clean up bad, unmatched bookings.
+        
+        Args:
+            hotel_data(list[dict]): Hotel slot data returned from the ReservationApi
+            band_data(list[dict]): Band slot data returned from the ReservationApi
+        '''
+        hotel_data, band_data = self.get_slots_held()
+
+        for slot in hotel_data:
+            if slot not in band_data:
+                id = slot.get("id")
+                try:
+                    self.hotel.release_slot(id)
+                except Exception as e:
+                    print(f"An error occured trying to cancel hotel slot {id}: {e}. Continuing...")
+        
+        for slot in band_data:
+            if slot not in hotel_data:
+                id = slot.get("id")
+                try:
+                    self.band.release_slot(id)
+                except Exception as e:
+                    print(f"An error occured trying to cancel band slot {id}: {e}. Continuing...")

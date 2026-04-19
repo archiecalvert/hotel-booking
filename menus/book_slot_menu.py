@@ -13,18 +13,17 @@ class MenuBookedSlots(Menu):
             print("Fetching booking data...")
 
             # check that the maximum number of bookings haven't been made.
-            hotel_bookings = self.hotel.get_slots_held()
-            band_bookings = self.band.get_slots_held()
+            hotel_data, band_data = self.get_slots_held()
 
-            if len(hotel_bookings) >= self.hotel.max_bookings_count and len(band_bookings) >= self.band.max_bookings_count:
+            if len(hotel_data) >= self.hotel.max_bookings_count and len(band_data) >= self.band.max_bookings_count:
                 print("The maximum number of hotel and band bookings has been made. Please cancel a booking from each to continue.")
                 return
             
-            elif len(hotel_bookings) >= self.hotel.max_bookings_count:
+            elif len(hotel_data) >= self.hotel.max_bookings_count:
                 print("The maximum number of hotel bookings have been made. Please cancel one to continue")
                 return
             
-            elif len(band_bookings) >= self.band.max_bookings_count:
+            elif len(band_data) >= self.band.max_bookings_count:
                 print("The maximum number of band bookings have been made. Please cancel one to continue")
                 return
 

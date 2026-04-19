@@ -9,8 +9,7 @@ class MenuCancelUnneededReservations(Menu):
         Menu._print_title("Cancel Unneeded Reservation")
         try:
             print("Fetching reservation data...")
-            hotel_data = self.hotel.get_slots_held()
-            band_data = self.band.get_slots_held()
+            hotel_data, band_data = self.get_slots_held()
 
             unmatched_hotels = []
             unmatched_bands = []
@@ -41,7 +40,7 @@ class MenuCancelUnneededReservations(Menu):
             if option.lower() == "no": return
 
             print("Cleaning up bookings...")
-            self.cleanup_bookings(unmatched_hotels, unmatched_bands)
+            self.cleanup_bookings()
 
 
         except Exception as e:

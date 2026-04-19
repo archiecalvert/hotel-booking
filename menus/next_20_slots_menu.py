@@ -9,8 +9,9 @@ class Menu20AvailableHotelsAndBands(Menu):
         Menu._print_title("Earliest 20 Available Slots")
         try:
             print("Fetching slot data...")
-            hotel_data = self.hotel.get_slots_available()[:20]
-            band_data = self.band.get_slots_available()[:20]
+            hotel_data, band_data = self.get_slots_available()
+            hotel_data = hotel_data[:20]
+            band_data = band_data[:20]
 
             if hotel_data == [] and band_data == []:
                 print("No slots are being currently available")

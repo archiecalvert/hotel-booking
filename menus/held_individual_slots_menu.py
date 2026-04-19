@@ -9,8 +9,7 @@ class MenuHeldHotelsAndBands(Menu):
     def load(self) -> MenuState:
         Menu._print_title("Held Slots")
         try:
-            hotel_data = self.hotel.get_slots_held()
-            band_data = self.band.get_slots_held()
+            hotel_data, band_data = self.get_slots_held()
 
             if hotel_data == [] and band_data == []:
                 print("\033[95mNo bookings found\033[0m")

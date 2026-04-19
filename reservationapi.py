@@ -15,6 +15,7 @@ import simplejson
 import warnings
 import time
 
+from concurrent.futures import ThreadPoolExecutor
 from requests.exceptions import HTTPError
 from exceptions import (
     BadRequestError, InvalidTokenError, BadSlotError, NotProcessedError,
@@ -29,23 +30,44 @@ class RateLimiter:
             rate_limiter.run_task(lambda: function(arguments))
           <br>or use one of the provided wrapper methods
     '''
-    def __init__(self, rate_limit):
+    def __init__(self, rate_limit: float, name: str):
         self.rate_limit = float(rate_limit)
         self.last_timestamp = 0
+        self.name = name
 
     
     def run_task(self, task):
         elapsed_time = time.time() - self.last_timestamp
 
         if elapsed_time < self.rate_limit:
+            print(f"\033[33m({self.name}) WARNING\033[0m: Rate limit on the API has been reached! API call will resume in {self.rate_limit - elapsed_time:0.1f} second(s)")
             time.sleep(self.rate_limit - elapsed_time)
         
         self.last_timestamp = time.time()
         return task()
 
+class Cache:
+    def __init__(self, expire_time_s):
+        self.expire_time = expire_time_s
+        self.last_access = 0
+        self.data = []
+
+    def dirty(self) -> bool:
+        elapsed_time = time.time() - self.last_access
+        return elapsed_time > self.expire_time
+    
+    def update(self, data):
+        self.data = data
+        self.last_access = time.time()
+
+    def append(self, item):
+        self.data.append(item)
+
+    def remove(self, item):
+        self.data.remove(item)
 
 class ReservationApi:
-    def __init__(self, base_url: str, token: str, retries: int, delay: float, max_bookings_count: int = 2):
+    def __init__(self, name, base_url: str, token: str, retries: int, delay: float, max_bookings_count: int = 2):
         """ Create a new ReservationApi to communicate with a reservation
         server.
 
@@ -55,13 +77,14 @@ class ReservationApi:
             retries: The maximum number of attempts to make for each request.
             delay: A delay to apply to each request to prevent server overload.
         """
+        self.name           = name
         self.base_url       = base_url
         self.token          = token
         self.retries        = retries
         self.delay          = delay
-        self.rate_limiter   = RateLimiter(1)
-        self.dirty_cache    = True # if this is ever true, then the data in the cache needs refreshing
-        self.booking_cache  = []
+        self.rate_limiter   = RateLimiter(1, name)
+        self.booking_cache = Cache(5)
+        self.available_slot_cache = Cache(5)
         self.max_bookings_count = max_bookings_count
 
     def _reason(self, req: requests.Response) -> str:
@@ -133,13 +156,16 @@ class ReservationApi:
             # 5xx responses indicate a server-side error, show a warning
             # (including the try number).
             elif str(response.status_code)[0] == "5":
-                print(f"\033[33mWARNING\033[0m: A server-side error occured when trying to access the API (Error Code {response.status_code}). Performing retry {i+1}/{self.retries} in {iteration_delay} seconds")
+                print(f"\033[33mWARNING ({self.name})\033[0m: A server-side error occured when trying to access the API (Error Code {response.status_code}). Performing retry {i+1}/{self.retries} in {iteration_delay} seconds")
                 time.sleep(iteration_delay) # uses exponential backoff
                 continue
 
             # 400 errors are client problems that are meaningful, so convert
             # them to separate exceptions that can be caught and handled by
             # the caller.
+            elif response.status_code == 400:
+                raise BadRequestError()
+
             elif response.status_code == 401:
                 raise InvalidTokenError()
             
@@ -151,6 +177,10 @@ class ReservationApi:
             
             elif response.status_code == 409:
                 raise SlotUnavailableError()
+            
+            elif response.status_code == 451:
+                raise ReservationLimitError()
+
             
             # Anything else is unexpected and may need to kill the client.
             else:
@@ -167,18 +197,24 @@ class ReservationApi:
     def get_slots_available(self):
         """Obtain the list of slots currently available in the system"""
         # Your code goes here
-        return self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation/available"))
+        if not self.available_slot_cache.dirty():
+            print(f"\033[96mCACHE ({self.name})\033[0m: Using cached available bookings")
+            return self.available_slot_cache.data
+        else:
+            print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached available bookings. Cache will expire in {self.available_slot_cache.expire_time} seconds")
+            self.available_slot_cache.update(self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation/available")))
+            return self.available_slot_cache.data
 
     def get_slots_held(self):
         """Obtain the list of slots currently held by the client"""
         # Your code goes here
-        if not self.dirty_cache:
-            return self.booking_cache
+        if not self.booking_cache.dirty():
+            print(f"\033[96mCACHE ({self.name})\033[0m: Using cached held bookings")
+            return self.booking_cache.data
         else:
-            self.booking_cache = self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation"))
-            self.dirty_cache = False
-            return self.booking_cache
-
+            print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached held bookings. Cache will expire in {self.booking_cache.expire_time} seconds")
+            self.booking_cache.update(self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation")))
+            return self.booking_cache.data
 
     def release_slot(self, slot_id):
         """Release a slot currently held by the client"""

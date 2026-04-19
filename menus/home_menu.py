@@ -9,8 +9,7 @@ class MenuHome(Menu):
         # ------------- CURRENT SLOTS -------------
         print("Fetching booking data...")
         try:
-            hotel_data = self.hotel.get_slots_held()
-            band_data = self.band.get_slots_held()
+            hotel_data, band_data = self.get_slots_held()
 
             if not (len(hotel_data) == 0 and len(band_data) == 0):  
                 print()
