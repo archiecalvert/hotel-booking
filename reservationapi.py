@@ -211,10 +211,10 @@ class ReservationApi:
         """Obtain the list of slots currently available in the system"""
         # Your code goes here
         if not bypass_cache and not self.available_slot_cache.dirty():
-            # print(f"\033[96mCACHE ({self.name})\033[0m: Using cached available bookings")
+            print(f"\033[96mCACHE ({self.name})\033[0m: Using cached available bookings")
             return self.available_slot_cache.data
         else:
-            # print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached available bookings. Cache will expire in {self.available_slot_cache.expire_time} seconds")
+            print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached available bookings. Cache will expire in {self.available_slot_cache.expire_time} seconds")
             self.available_slot_cache.update(self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation/available")))
             return self.available_slot_cache.data
 
@@ -222,10 +222,10 @@ class ReservationApi:
         """Obtain the list of slots currently held by the client"""
         # Your code goes here
         if not bypass_cache and not self.booking_cache.dirty():
-            # print(f"\033[96mCACHE ({self.name})\033[0m: Using cached held bookings")
+            print(f"\033[96mCACHE ({self.name})\033[0m: Using cached held bookings")
             return self.booking_cache.data
         else:
-            # print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached held bookings. Cache will expire in {self.booking_cache.expire_time} seconds")
+            print(f"\033[96mCACHE ({self.name})\033[0m: Refreshing cached held bookings. Cache will expire in {self.booking_cache.expire_time} seconds")
             self.booking_cache.update(self.rate_limiter.run_task(lambda: self._send_request("GET", f"{self.base_url}/reservation")))
             return self.booking_cache.data
 

@@ -14,19 +14,34 @@ class MenuReserveEarliestSlot(Menu):
             hotel_data, band_data = self.get_slots_held()
 
             if len(hotel_data) >= self.hotel.max_bookings_count and len(band_data) >= self.band.max_bookings_count:
-                print("\033[95The maximum number of hotel and band bookings has been made. Please cancel a booking from each to continue\033[0m")
-                print()
-                return
+                print("\033[95mThe maximum number of hotel and band bookings has been made.")
+                option = self.poll_yes_no("Would you like to cancel a booking? (Yes/No) \033[0m")
+                if option == "no":
+                    input("Press Enter to return to the home menu...")
+                    return MenuState.HOME
+                else:
+                    Menu.callback = MenuState.RESERVE_EARLIEST_SLOT
+                    return MenuState.CANCEL_HELD_SLOT
             
             elif len(hotel_data) >= self.hotel.max_bookings_count:
-                print("\033[95The maximum number of hotel bookings have been made. Please cancel one to continue\033[0m")
-                print()
-                return
+                print("\033[95mThe maximum number of hotel bookings have been made.")
+                option = self.poll_yes_no("Would you like to cancel a booking? (Yes/No) \033[0m")
+                if option == "no":
+                    input("Press Enter to return to the home menu...")
+                    return MenuState.HOME
+                else:
+                    Menu.callback = MenuState.RESERVE_EARLIEST_SLOT
+                    return MenuState.CANCEL_HELD_SLOT
             
             elif len(band_data) >= self.band.max_bookings_count:
-                print("\033[95The maximum number of band bookings have been made. Please cancel one to continue\033[0m")
-                print()
-                return
+                print("\033[95mThe maximum number of band bookings have been made.")
+                option = self.poll_yes_no("Would you like to cancel a booking? (Yes/No) \033[0m")
+                if option == "no":
+                    input("Press Enter to return to the home menu...")
+                    return MenuState.HOME
+                else:
+                    Menu.callback = MenuState.RESERVE_EARLIEST_SLOT
+                    return MenuState.CANCEL_HELD_SLOT
         
             data = self.get_matching_available_slots(1)
             
@@ -34,14 +49,17 @@ class MenuReserveEarliestSlot(Menu):
             if data == None or data == []:
                 print("\033[95mNo available slots are remaining\033[0m")
                 print()
-                return
+                input("Press Enter to return to the home menu...")
+                return MenuState.HOME
 
             slot_id = int(data[0].get("id"))
             print(f"The earliest available slot is \033[95mSlot {slot_id}\033[0m")
             print()
             # --- BOOKING LOGIC ---
             option = self.poll_yes_no("Would you like to book this slot (Yes/No): ")            
-            if option == "no": return
+            if option == "no":
+                input("Press Enter to return to the home menu...")
+                return MenuState.HOME
             
             print("Attempting to book slot...")
             
@@ -63,11 +81,10 @@ class MenuReserveEarliestSlot(Menu):
             except Exception as e:
                 print("Failed to book the requested slot. Please return to the main menu and try again.")
                 raise e
-    
+
+            input("Press Enter to return to the home menu...")
+            return MenuState.HOME
         except Exception as e:
             print(f"An error occurred while performing the request: {e}")
-
-        finally:
-            # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
             return MenuState.HOME

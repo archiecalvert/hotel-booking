@@ -7,6 +7,14 @@ class MenuHome(Menu):
 
     def load(self) -> MenuState:
         # ------------- CURRENT SLOTS -------------
+        Menu._print_title("FEATURES")
+        print("- Rate Limiting on both API's")
+        print("- Data Cache for both API's, with an expiry time each of 60s")
+        print("- Multi-threaded API calls between both API's to improve application efficiency")
+        print("- Exponential backoff on reattempts of API calls, with a maximum of 3 retries.")
+        print("- Automatic clear up for bookings when an operation partially or fully fails")
+        print()
+        Menu._print_title("APPLICATION STARTING")
         print("Fetching booking data...")
         try:
             hotel_data, band_data = self.get_slots_held()

@@ -5,12 +5,12 @@ class MenuCancelSlot(Menu):
     def __init__(self, hotel: reservationapi.ReservationApi, band: reservationapi.ReservationApi):
         super().__init__(hotel, band)
 
-    def load(self) -> MenuState:
+    def load(self, *args) -> MenuState:
         ''' Menu for removing a reserved slot '''
         Menu._print_title("Cancel a Held Slot")
         # try call api and handle any errors that might come with that
         try:
-            booking_option = self.poll_individual_matching_booking()
+            booking_option = self.poll_individual_matching_booking("What kind of booking would you like to remove?")
             if booking_option == None:
                 return
             
@@ -54,5 +54,11 @@ class MenuCancelSlot(Menu):
 
         finally:
             # keep on screen until user confirms theyre finished
-            input("Press Enter to return to the home menu...")
-            return MenuState.HOME
+            if Menu.callback == MenuState.HOME:
+                input("Press Enter to return to the home menu...")
+                return MenuState.HOME
+            else:
+                input("Press enter to return to previous menu.")
+                dest = Menu.callback
+                Menu.callback = MenuState.HOME
+                return dest

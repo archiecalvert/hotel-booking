@@ -25,6 +25,10 @@ class BookingType(Enum):
 
 class Menu():
 
+    # responsible for manually setting the page to go back to
+    # NEEDS TO BE HANDLED EXTERNALLY
+    callback = MenuState.HOME
+
     def __init__(self, hotel: reservationapi.ReservationApi, band: reservationapi.ReservationApi):
         self.hotel = hotel
         self.band = band
@@ -109,7 +113,7 @@ class Menu():
 
         return option
     
-    def poll_individual_matching_booking(self) -> str:
+    def poll_individual_matching_booking(self, message="What kind of booking would you like to make:") -> str:
         ''' Function which polls for a whether they want to make an individual booking or a 
         matching booking.
         
@@ -119,7 +123,7 @@ class Menu():
         option = None
         while option == None:
             try:
-                print("What kind of booking would you like to make:")
+                print(message)
                 print("\033[95m1. Hotel")
                 print("2. Band")
                 print("3. Matching slot")
@@ -168,6 +172,7 @@ class Menu():
             (list[dict], list[dict]): A tuple of (hotel_data, band_data)
         '''
         with ThreadPoolExecutor() as executor:
+            print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
             t1 = executor.submit(self.hotel.get_slots_held)
             t2 = executor.submit(self.band.get_slots_held)
 
@@ -181,6 +186,7 @@ class Menu():
         '''
         try:
             with ThreadPoolExecutor() as executor:
+                print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
                 t1 = executor.submit(lambda:self.hotel.release_slot(slot_id))
                 t2 = executor.submit(lambda:self.band.release_slot(slot_id))
 
@@ -200,6 +206,7 @@ class Menu():
         # ensure that if any errors occur, the system cleans up after itself
         try:
             with ThreadPoolExecutor() as executor:
+                print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
                 t1 = executor.submit(lambda:self.hotel.reserve_slot(slot_id))
                 t2 = executor.submit(lambda:self.band.reserve_slot(slot_id))
 
@@ -213,6 +220,7 @@ class Menu():
 
     def get_slots_available(self, bypass_cache:bool = False):
         with ThreadPoolExecutor() as executor:
+            print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
             t1 = executor.submit(lambda: self.hotel.get_slots_available(bypass_cache))
             t2 = executor.submit(lambda: self.band.get_slots_available(bypass_cache))
 
