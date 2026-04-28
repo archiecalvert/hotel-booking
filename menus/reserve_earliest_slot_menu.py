@@ -36,7 +36,7 @@ class MenuReserveEarliestSlot(Menu):
                 print()
                 return
 
-            slot_id = data[0].get("id")
+            slot_id = int(data[0].get("id"))
             print(f"The earliest available slot is \033[95mSlot {slot_id}\033[0m")
             print()
             # --- BOOKING LOGIC ---
@@ -50,8 +50,8 @@ class MenuReserveEarliestSlot(Menu):
                 # try book an earlier slot
                 try:
                     attempt = self.get_matching_available_slots(limit=1, bypass_cache=True)
-                    if len(attempt) > 0 and attempt[0].get("id") < slot_id:
-                        new_id = attempt[0].get("id")
+                    if len(attempt) > 0 and int(attempt[0].get("id")) < slot_id:
+                        new_id = int(attempt[0].get("id"))
                         print(f"INFO: Earlier booking has been found (Slot {new_id}). Attempting to book...")
                         self.cancel_matching_slot(slot_id) # remove earliest slot 
                         self.book_matching_slot(new_id)    # book earlier slot
