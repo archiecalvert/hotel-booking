@@ -134,7 +134,7 @@ class MenuReserveEarliestSlot(Menu):
                             band_data = t2.result()    
                         
                         print(f"Attempting to book Slot {new_id}...")
-                        self.book_matching_slot(new_id)    # book earlier slot
+                        self.book_matching_slot(new_id, None, None)    # book earlier slot
                         self.cancel_matching_slot(slot_id) # remove earlier slot 
                         slot_id = new_id                   # runs if the newer booking was successful
                         print(f"\033[32mSUCCESS:\033[0m Slot {slot_id} has been reserved successfully.")

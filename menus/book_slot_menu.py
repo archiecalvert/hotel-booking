@@ -85,7 +85,7 @@ class MenuBookedSlots(Menu):
                         in_hotel = int(option) in [int(x.get("id")) for x in hotel_data]
                         in_band = int(option) in [int(x.get("id")) for x in band_data]
                         if not in_hotel and not in_band:   
-                            self.book_matching_slot(option)
+                            self.book_matching_slot(option, None, None)
                         elif not in_hotel:
                             self.hotel.reserve_slot(option)
                         elif not in_band:

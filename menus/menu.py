@@ -37,14 +37,14 @@ class Menu():
     def load(self) -> MenuState:
         return
     
-    def _reset_stdout():
+    def _reset_stdout() -> None:
         ''' Function which clears the output of the terminal and prints the menu title at the top '''
         os.system('cls' if os.name == 'nt' else 'clear')
         print("=" * TITLE_WIDTH)
         Menu._print_title(TITLE)
         print("=" * TITLE_WIDTH)
 
-    def _print_title(title: str):
+    def _print_title(title: str) -> None:
         '''
         Function which prints a formatted title of the form: 
         <br>|-----| TITLE |-----|
@@ -190,7 +190,7 @@ class Menu():
 
             return (r1, r2)
     
-    def cancel_matching_slot(self, slot_id: int):
+    def cancel_matching_slot(self, slot_id: int) -> None:
         ''' Function which attempts to remove a booking of the same slot. If this cant happen, then an exception is thrown
         (CALLS API)
 
@@ -210,14 +210,13 @@ class Menu():
             print(f"An error occured when cancelling slot {slot_id}. You may want to run manual clean-up from the Home Menu.")
             raise e
         
-    def book_matching_slot(self, slot_id: int, hotels_held:list[dict] = list(), bands_held:list[dict] = list()):
+    def book_matching_slot(self, slot_id: int, hotels_held:list[dict], bands_held:list[dict]) -> None:
         ''' Function which attempts to book a matching slot. If this cant occur, then the system releases partial bookings.
         The hotels held and bands held are used in the case where the user is booking a matching slot, and already has one.
 
         Args:
             slot_id(int): The id of the target slot from the ReservationApi
             hotels_held(list[dict]): The hotels held by the user
-        Returns:
 
         '''
 
@@ -261,7 +260,14 @@ class Menu():
             raise e
 
 
-    def get_slots_available(self, bypass_cache:bool = False):
+    def get_slots_available(self, bypass_cache:bool = False) -> tuple:
+        ''' Function which gets the available slots.
+        
+        Args:
+            bypass_cache (bool): Whether to use the cached data or not
+        Returns:
+            (hotels, bands): Sorted band and hotel bookings which are available
+        '''
         with ThreadPoolExecutor() as executor:
             print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
             t1 = executor.submit(lambda: self.hotel.get_slots_available(bypass_cache))
@@ -278,7 +284,7 @@ class Menu():
             return (r1, r2)
     
 
-    def get_matching_available_slots(self, limit:int = None, hotel_bookings:dict = [], band_bookings:dict = [], bypass_cache:bool = False):
+    def get_matching_available_slots(self, limit:int, hotel_bookings:list[dict], band_bookings:dict, bypass_cache:bool = False) -> list[dict]:
         ''' Function which gets all matching slots for hotel and band.
         
         Args:
@@ -286,7 +292,8 @@ class Menu():
             hotel_bookings(list[dict]): hotel bookings
             band_bookings(list[dict]): band bookings
             bypass_cache(bool): (Default False) Whether we want to only call the API
-        
+        Returns:
+            list[dict]: The list of matching available slots
         '''
         
         hotel_availability, band_availability = self.get_slots_available(bypass_cache)
@@ -308,12 +315,14 @@ class Menu():
         else: return matches
 
     
-    def get_unmatched_held_bookings(self, hotel_held, band_held):
+    def get_unmatched_held_bookings(self, hotel_held:list[dict], band_held: list[dict]) -> tuple:
         '''
         Function which returns the bookings which currently aren't matched up.
         Parameters:
             hotel_held: list[dict]: held hotel bookings
             band_held: list[dict]: held hotel bookings
+        Returns:
+            (hotel_bookings, band_bookings): The unmatched bookings
         '''
 
         if hotel_held == None or band_held == None:
@@ -341,12 +350,7 @@ class Menu():
 
 
     def cleanup_bookings(self):
-        ''' Function which attempts to clean up bad, unmatched bookings.
-        
-        Args:
-            hotel_data(list[dict]): Hotel slot data returned from the ReservationApi
-            band_data(list[dict]): Band slot data returned from the ReservationApi
-        '''
+        ''' Function which attempts to clean up bad, unmatched bookings.'''
         hotel_data, band_data = self.get_slots_held()
 
         for slot in hotel_data:
