@@ -37,7 +37,7 @@ class MenuBookedSlots(Menu):
                     print("\033[95mThe maximum number of hotel and band bookings has been made. Please cancel a booking from each to continue.\033[0m")
                     print()
                     return
-                data = self.get_matching_available_slots()
+                data = self.get_matching_available_slots(None, None, None, False)
             else: return
 
             # parse the data and print to console output

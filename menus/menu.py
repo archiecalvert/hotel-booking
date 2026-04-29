@@ -176,7 +176,15 @@ class Menu():
             t1 = executor.submit(self.hotel.get_slots_held)
             t2 = executor.submit(self.band.get_slots_held)
 
-            return (t1.result(), t2.result())
+            r1 = t1.result()
+            r2 = t2.result()
+
+            if r1 is not None and len(r1) != 0:
+                r1.sort(key=lambda x: int(x.get("id")))
+            if r2 is not None and len(r2) != 0:
+                r2.sort(key=lambda x: int(x.get("id")))
+
+            return (r1, r2)
     
     def cancel_matching_slot(self, slot_id: int):
         ''' Function which attempts to remove a booking of the same slot. If this cant happen, then an exception is thrown
@@ -196,23 +204,43 @@ class Menu():
         except Exception as e:
             print(f"An error occured when cancelling slot {slot_id}. You may want to run manual clean-up from the Home Menu.")
             raise e
-
-    def book_matching_slot(self, slot_id: int):
+        
+    def book_matching_slot(self, slot_id: int, hotels_held:list[dict] = list(), bands_held:list[dict] = list()):
         ''' Function which attempts to book a matching slot. If this cant occur, then the system releases partial bookings.
         
         Args:
             slot_id(int): The id of the target slot from the ReservationApi
         '''
+
+        has_hotel = False
+        has_band = False
+        for x in hotels_held:
+            if int(x.get("id")) == slot_id:
+                has_hotel = True
+
+        for x in bands_held:
+            if int(x.get("id")) == slot_id:
+                has_band = True
+
         # ensure that if any errors occur, the system cleans up after itself
         try:
             with ThreadPoolExecutor() as executor:
                 print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
-                t1 = executor.submit(lambda:self.hotel.reserve_slot(slot_id))
-                t2 = executor.submit(lambda:self.band.reserve_slot(slot_id))
+                
+                if not has_hotel:
+                    t1 = executor.submit(lambda:self.hotel.reserve_slot(slot_id))
+                else:
+                    t1 = executor.submit(lambda x: ())
+
+                if not has_band:
+                    t2 = executor.submit(lambda:self.band.reserve_slot(slot_id))
+                else:
+                    t2 = executor.submit(lambda: ())
 
                 #  raise exepctions if they occur
                 t1.result()
                 t2.result()
+                
         except Exception as e:
             self.hotel.release_slot(slot_id)
             raise e
@@ -224,22 +252,99 @@ class Menu():
             t1 = executor.submit(lambda: self.hotel.get_slots_available(bypass_cache))
             t2 = executor.submit(lambda: self.band.get_slots_available(bypass_cache))
 
-            return (t1.result(), t2.result())
+            r1 = t1.result()
+            r2 = t2.result()
+
+            if r1 is not None and len(r1) != 0:
+                r1.sort(key=lambda x: int(x.get("id")))
+            if r2 is not None and len(r1) != 0:
+                r2.sort(key=lambda x: int(x.get("id")))
+
+            return (r1, r2)
     
 
-    def get_matching_available_slots(self, limit:int = None, bypass_cache:bool = False) -> list[dict]:
+    def get_matching_available_slots(self, limit:int = None, hotel_bookings:dict = [], band_bookings:dict = [], bypass_cache:bool = False):
         ''' Function which gets all matching slots for hotel and band.
         
         Args:
             limit(int): (optional) The number of returned items
+            hotel_bookings(list[dict]): hotel bookings
+            band_bookings(list[dict]): band bookings
+            bypass_cache(bool): (Default False) Whether we want to only call the API
         
         '''
-        hotel_availability, band_availability = self.get_slots_available(bypass_cache)
         
-        matches = self.matchup_slots(hotel_availability, band_availability)
+        hotel_availability, band_availability = self.get_slots_available(bypass_cache)
 
+        if hotel_bookings == None:
+            hotel_bookings = []
+        if band_bookings == None:
+            band_bookings = []
+
+        h = hotel_availability + hotel_bookings
+        b = band_availability + band_bookings
+
+        matches = self.matchup_slots(h, b)
+
+        if matches is not None and len(matches) != 0:
+            matches.sort(key=lambda x: int(x.get("id")))
+        
         if limit != None: return matches[:limit]
         else: return matches
+
+    def get_unmatched_held_bookings(self):
+        '''
+        Function which returns the bookings which currently aren't matched up.
+        '''
+        hotel_held, band_held = self.get_slots_held()
+
+        hotel_new = []
+        band_new = []
+
+        for hotel in hotel_held:
+            if hotel not in band_held:
+                hotel_new.append(hotel)
+
+        for band in band_held:
+            if band not in hotel_held:
+                band_new.append(band)
+
+        if len(hotel_new) != 0:
+            hotel_new.sort(key=lambda x: int(x.get("id")))
+        
+        if len(band_new) != 0:
+            band_new.sort(key=lambda x: int(x.get("id")))
+
+        return hotel_new, band_new
+    
+
+    def get_unmatched_held_bookings(self, hotel_held, band_held):
+        '''
+        Function which returns the bookings which currently aren't matched up.
+        Parameters:
+            hotel_held: list[dict]: held hotel bookings
+            band_held: list[dict]: held hotel bookings
+        '''
+        hotel_new = []
+        band_new = []
+
+        for hotel in hotel_held:
+            if hotel not in band_held:
+                hotel_new.append(hotel)
+
+        for band in band_held:
+            if band not in hotel_held:
+                band_new.append(band)
+
+        if len(hotel_new) != 0:
+            hotel_new.sort(key=lambda x: int(x.get("id")))
+        
+        if len(band_new) != 0:
+            band_new.sort(key=lambda x: int(x.get("id")))
+
+        return hotel_new, band_new
+        
+
 
     def cleanup_bookings(self):
         ''' Function which attempts to clean up bad, unmatched bookings.
