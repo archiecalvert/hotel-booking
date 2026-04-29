@@ -244,12 +244,12 @@ class Menu():
                 if not has_hotel:
                     t1 = executor.submit(lambda:self.hotel.reserve_slot(slot_id))
                 else:
-                    t1 = executor.submit(lambda x: ())
+                    t1 = executor.submit(lambda: None)
 
                 if not has_band:
                     t2 = executor.submit(lambda:self.band.reserve_slot(slot_id))
                 else:
-                    t2 = executor.submit(lambda: ())
+                    t2 = executor.submit(lambda: None)
 
                 #  raise exepctions if they occur
                 t1.result()
