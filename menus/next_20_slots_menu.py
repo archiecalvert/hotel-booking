@@ -10,12 +10,15 @@ class Menu20AvailableHotelsAndBands(Menu):
         try:
             print("Fetching booking data...")
             hotel_data, band_data = self.get_slots_available()
-            match_data = self.matchup_slots(hotel_data, band_data)
+
+            hotel_held, band_held = self.get_slots_held()
+            hotel_unmatched, band_unmatched = self.get_unmatched_held_bookings(hotel_held, band_held)
+            match_data = self.get_matching_available_slots(None, hotel_unmatched, band_unmatched, False)
 
             hotel_data = hotel_data[:20]
             band_data = band_data[:20]
             match_data = match_data[:20]
-            if hotel_data == [] and band_data == []:
+            if hotel_data == [] and band_data == [] and match_data == []:
                 print("\033[95mNo slots are being currently available\033[0m")
                 print()
                 return

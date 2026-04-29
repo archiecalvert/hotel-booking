@@ -8,7 +8,7 @@ class MenuReserveEarliestSlot(Menu):
 
     def load(self):
         ''' Menu function for booking a slot '''
-        Menu._print_title("Book a Slot")
+        Menu._print_title("Book the Earliest Slot")
 
         # try call api and handle any errors that might come with that
         try:
@@ -112,33 +112,28 @@ class MenuReserveEarliestSlot(Menu):
                             if int(x.get("id")) != id:
                                 api.release_slot(x.get("id"))
 
+                        return data
+
                     # check to see if an earlier slot is open on the api (bypass cache)
                     attempt = self.get_matching_available_slots(1, None, None, True)
 
                     # if the above is true, then we need to attempt to book it
                     if len(attempt) > 0 and int(attempt[0].get("id")) < slot_id:
-
-                        # if we're at capacity, then need to remove the later bookings (safety for the most up-to-date booking)
-                        if not (len(hotel_data) < self.hotel.max_bookings_count and len(hotel_data) < self.hotel.max_bookings_count):
-                            print()
-                            print("An earlier booking has been found, but you have the maximum number of bookings for a service.")
-                            option = self.poll_yes_no("Would you like to delete your later bookings and rebook? (Yes/No): ")
-                            
-                            if option == "yes":
-                                # eliminate the bookings in parallel
-                                with ThreadPoolExecutor() as executor:
-                                    print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
-                                    t1 = executor.submit(cancel, slot_id, hotel_data, self.hotel)
-                                    t2 = executor.submit(cancel, slot_id, band_data, self.band)
-                                    t1.result()
-                                    t2.result()
-                            else:
-                                input("Press Enter to return to the home menu...")
-                                return MenuState.HOME
-
+                        
                         # the id of the most early booking
                         new_id = int(attempt[0].get("id"))
-                        print(f"INFO: {new_id}). Attempting to book...")
+                        print()
+                        print(f"An earlier booking has been found (Slot {new_id}).")
+
+                        # if we're at capacity, then need to remove the later bookings (safety for the most up-to-date booking)   
+                        # eliminate the bookings in parallel
+                        with ThreadPoolExecutor() as executor:
+                            t1 = executor.submit(cancel, slot_id, hotel_data, self.hotel)
+                            t2 = executor.submit(cancel, slot_id, band_data, self.band)
+                            hotel_data = t1.result()
+                            band_data = t2.result()    
+                        
+                        print(f"Attempting to book Slot {new_id}...")
                         self.book_matching_slot(new_id)    # book earlier slot
                         self.cancel_matching_slot(slot_id) # remove earlier slot 
                         slot_id = new_id                   # runs if the newer booking was successful
@@ -150,7 +145,6 @@ class MenuReserveEarliestSlot(Menu):
                     print("Running Cleanup...")
                     # clean up every booking EXCEPT the one we've just made
                     with ThreadPoolExecutor() as executor:
-                        print("\033[94mMULTI-THREAD\033[00m: Calling API's in parallel...")
                         t1 = executor.submit(cancel, slot_id, hotel_data, self.hotel)
                         t2 = executor.submit(cancel, slot_id, band_data, self.band)
                         t1.result()
@@ -163,7 +157,8 @@ class MenuReserveEarliestSlot(Menu):
             except Exception as e:
                 print("Failed to book the requested slot. Please return to the main menu and try again.")
                 raise e
-
+            
+            print()
             input("Press Enter to return to the home menu...")
             return MenuState.HOME
         except Exception as e:

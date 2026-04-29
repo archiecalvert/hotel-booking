@@ -9,7 +9,9 @@ class MenuUpcoming5Slots(Menu):
         Menu._print_title("Available Slots (Limit of 5)")
         try:
             print("Fetching booking data...")
-            slot_data = self.get_matching_available_slots(5, None, None, False)
+            hotel_data, band_data = self.get_slots_held()
+            hotel_unmatched, band_unmatched = self.get_unmatched_held_bookings(hotel_data, band_data)
+            slot_data = self.get_matching_available_slots(5, hotel_unmatched, band_unmatched, False)
             
             if slot_data != None:
                 print()

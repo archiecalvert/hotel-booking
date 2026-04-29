@@ -12,7 +12,7 @@ class MenuHome(Menu):
         print("- Data Cache for both API's, with an expiry time each of 60s")
         print("- Multi-threaded API calls between both API's to improve application efficiency")
         print("- Exponential backoff on reattempts of API calls, with a maximum of 3 retries.")
-        print("- Automatic clear up for bookings when an operation partially or fully fails")
+        print("- Automatic clean up for bookings when an operation partially or fully fails")
         print()
         Menu._print_title("APPLICATION STARTING")
         print("Fetching booking data...")

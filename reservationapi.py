@@ -39,7 +39,7 @@ class RateLimiter:
         elapsed_time = time.time() - self.last_timestamp
 
         if elapsed_time < self.rate_limit:
-            print(f"\033[33m({self.name}) WARNING\033[0m: Rate limit on the API has been reached! API call will resume in {self.rate_limit - elapsed_time:0.1f} second(s)")
+            print(f"\033[35mRATE LIMIT ({self.name})\033[0m: Rate limit on the API has been reached! API call will resume in {self.rate_limit - elapsed_time:0.1f} second(s)")
             time.sleep(self.rate_limit - elapsed_time)
         
         self.last_timestamp = time.time()

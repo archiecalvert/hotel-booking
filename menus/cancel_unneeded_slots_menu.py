@@ -13,7 +13,6 @@ class MenuCancelUnneededReservations(Menu):
 
             unmatched_hotels = []
             unmatched_bands = []
-
             found = False
             out = []
             for slot in hotel_data:
@@ -35,12 +34,13 @@ class MenuCancelUnneededReservations(Menu):
                     print(x)
                 print("\033[0m")
             else:
-                print("No unnmatched bookings found.")
+                print("\033[32mNo unnmatched bookings found.\033[0m")
                 return
             
             option = self.poll_yes_no("Would you like to remove these bookings? (Yes/No): ")
             if option.lower() == "no": return
 
+            print()
             print("Cleaning up bookings...")
             self.cleanup_bookings()
             print(f"\033[32mSUCCESS:\033[0m Bookings have been cleared up.")
@@ -50,6 +50,7 @@ class MenuCancelUnneededReservations(Menu):
             print(f"An error occurred while performing the request: {e}")
 
         finally:
+            print()
             # keep on screen until user confirms theyre finished
             input("Press Enter to return to the home menu...")
             return MenuState.HOME

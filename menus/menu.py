@@ -113,7 +113,7 @@ class Menu():
 
         return option
     
-    def poll_individual_matching_booking(self, message="What kind of booking would you like to make:") -> str:
+    def poll_individual_matching_booking(self, message:str ="What kind of booking would you like to make:") -> str:
         ''' Function which polls for a whether they want to make an individual booking or a 
         matching booking.
         
@@ -147,7 +147,9 @@ class Menu():
 
 
     def matchup_slots(self, hotel_data: list[dict], band_data: list[dict]) -> list[dict]:
-        ''' Function which takes in two booking lists from the API, and returns the slots which match up
+        ''' 
+        Function which takes in two booking lists, and returns the slots which match up with eachother from the function arguments.
+        (DOES NOT CALL API)
         
         Args:
             hotel_data(list[dict]): The hotel slot data from the ReservationApi
@@ -166,8 +168,10 @@ class Menu():
         return matches
 
     def get_slots_held(self) -> tuple:
-        ''' Function which gets the held slots from the APIs asynchronously.
-        
+        '''
+        Function which gets the held slots from the APIs asynchronously.
+        (CALLS API)
+
         Returns:
             (list[dict], list[dict]): A tuple of (hotel_data, band_data)
         '''
@@ -188,7 +192,8 @@ class Menu():
     
     def cancel_matching_slot(self, slot_id: int):
         ''' Function which attempts to remove a booking of the same slot. If this cant happen, then an exception is thrown
-        
+        (CALLS API)
+
         Args:
             slot_id(int): The id of the target slot from the ReservationApi
         '''
@@ -207,10 +212,20 @@ class Menu():
         
     def book_matching_slot(self, slot_id: int, hotels_held:list[dict] = list(), bands_held:list[dict] = list()):
         ''' Function which attempts to book a matching slot. If this cant occur, then the system releases partial bookings.
-        
+        The hotels held and bands held are used in the case where the user is booking a matching slot, and already has one.
+
         Args:
             slot_id(int): The id of the target slot from the ReservationApi
+            hotels_held(list[dict]): The hotels held by the user
+        Returns:
+
         '''
+
+        if hotels_held == None:
+            hotels_held = []
+
+        if bands_held == None:
+            bands_held = []
 
         has_hotel = False
         has_band = False
@@ -292,32 +307,7 @@ class Menu():
         if limit != None: return matches[:limit]
         else: return matches
 
-    def get_unmatched_held_bookings(self):
-        '''
-        Function which returns the bookings which currently aren't matched up.
-        '''
-        hotel_held, band_held = self.get_slots_held()
-
-        hotel_new = []
-        band_new = []
-
-        for hotel in hotel_held:
-            if hotel not in band_held:
-                hotel_new.append(hotel)
-
-        for band in band_held:
-            if band not in hotel_held:
-                band_new.append(band)
-
-        if len(hotel_new) != 0:
-            hotel_new.sort(key=lambda x: int(x.get("id")))
-        
-        if len(band_new) != 0:
-            band_new.sort(key=lambda x: int(x.get("id")))
-
-        return hotel_new, band_new
     
-
     def get_unmatched_held_bookings(self, hotel_held, band_held):
         '''
         Function which returns the bookings which currently aren't matched up.
@@ -325,6 +315,10 @@ class Menu():
             hotel_held: list[dict]: held hotel bookings
             band_held: list[dict]: held hotel bookings
         '''
+
+        if hotel_held == None or band_held == None:
+            hotel_held, band_held = self.get_slots_held()
+
         hotel_new = []
         band_new = []
 

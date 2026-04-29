@@ -5,7 +5,7 @@ class MenuCancelSlot(Menu):
     def __init__(self, hotel: reservationapi.ReservationApi, band: reservationapi.ReservationApi):
         super().__init__(hotel, band)
 
-    def load(self, *args) -> MenuState:
+    def load(self) -> MenuState:
         ''' Menu for removing a reserved slot '''
         Menu._print_title("Cancel a Held Slot")
         # try call api and handle any errors that might come with that
@@ -13,7 +13,7 @@ class MenuCancelSlot(Menu):
             booking_option = self.poll_individual_matching_booking("What kind of booking would you like to remove?")
             if booking_option == None:
                 return
-            
+            print()
             print("Fetching booking data...")
             match booking_option:
                 case BookingType.HOTEL: data = self.hotel.get_slots_held()
@@ -30,6 +30,8 @@ class MenuCancelSlot(Menu):
                 print()
                 return
 
+            print()
+            print("The following bookings have been found:")
             for res in self.parse_list(data):
                 print(f"\033[95m{res}\033[0m")
             print()
@@ -40,7 +42,7 @@ class MenuCancelSlot(Menu):
 
             # poll for relevant slot
             option = self.poll_slot_id("Enter Slot ID: ", data)
-            
+            print()
             print("Attempting to cancel slot...")
             match booking_option:
                 case BookingType.HOTEL:    self.hotel.release_slot(option)
@@ -48,11 +50,12 @@ class MenuCancelSlot(Menu):
                 case BookingType.MATCHING: self.cancel_matching_slot(option)
 
             print(f"\033[32mSUCCESS:\033[0m Slot {option} has been cancelled successfully.")
-
+            
         except Exception as e:
             print(f"An error occurred while performing the request: {e}")
 
         finally:
+            print()
             # keep on screen until user confirms theyre finished
             if Menu.callback == MenuState.HOME:
                 input("Press Enter to return to the home menu...")

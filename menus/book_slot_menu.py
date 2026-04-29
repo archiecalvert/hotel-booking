@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from .menu import (Menu, MenuState, BookingType)
 import reservationapi
 import math
@@ -17,8 +19,10 @@ class MenuBookedSlots(Menu):
             print("Fetching booking data...")
 
             # check that the maximum number of bookings haven't been made.
+            # holds the currently held bookings
             hotel_data, band_data = self.get_slots_held()
-
+            hotel_unmatched, band_unmatched = self.get_unmatched_held_bookings(hotel_data, band_data)
+            
             # set 'data' to the corresponding option chosen by the user
             if booking_option == BookingType.HOTEL:
                 if len(hotel_data) >= self.hotel.max_bookings_count:
@@ -37,7 +41,8 @@ class MenuBookedSlots(Menu):
                     print("\033[95mThe maximum number of hotel and band bookings has been made. Please cancel a booking from each to continue.\033[0m")
                     print()
                     return
-                data = self.get_matching_available_slots(None, None, None, False)
+
+                data = self.get_matching_available_slots(None, hotel_unmatched, band_unmatched, False)
             else: return
 
             # parse the data and print to console output
@@ -68,13 +73,23 @@ class MenuBookedSlots(Menu):
             if option.lower() == "no": return
 
             option = self.poll_slot_id("Enter Slot ID: ", data)
+            print()
             print("Attempting to book slot...")
-    
+
+            # book the corresponding slot 
             try:
                 match booking_option:
                     case BookingType.HOTEL:    self.hotel.reserve_slot(option)
                     case BookingType.BAND:     self.band.reserve_slot(option)
-                    case BookingType.MATCHING: self.book_matching_slot(option)
+                    case BookingType.MATCHING:
+                        in_hotel = int(option) in [int(x.get("id")) for x in hotel_data]
+                        in_band = int(option) in [int(x.get("id")) for x in band_data]
+                        if not in_hotel and not in_band:   
+                            self.book_matching_slot(option)
+                        elif not in_hotel:
+                            self.hotel.reserve_slot(option)
+                        elif not in_band:
+                            self.band.reserve_slot(option)
 
                 print(f"\033[32mSUCCESS:\033[0m Slot {option} has been reserved successfully.")
             except Exception as e:
@@ -86,5 +101,6 @@ class MenuBookedSlots(Menu):
 
         finally:
             # keep on screen until user confirms theyre finished
+            print()
             input("Press Enter to return to the home menu...")
             return MenuState.HOME

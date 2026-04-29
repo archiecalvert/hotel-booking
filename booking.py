@@ -85,6 +85,7 @@ class BookingSystem():
             # --------- MENU OPTION 8 ---------
             elif self.state == MenuState.QUIT:
                 do_mainloop = False
+                print("Thank you for using the Wedding Booking System.")
 
 if __name__ == "__main__":
     booking_system = BookingSystem()
